@@ -69,12 +69,31 @@ def flattenAndParseSearchResponse(response):
 
         }
         list_of_dicts.append(channel_data)
-        # pprint(snippet)
-        # pprint(stats)
-        # print(channel_id)
-        # pprint(elem)
     pprint(list_of_dicts)
     return list_of_dicts
+
+def getChannelListFromSearchResults(results):
+    items = results['items']
+    channel_id_list = []
+    for elem in items:
+        snippet = elem.get('snippet')
+        channel_id = snippet.get('channelId')
+        channel_id_list.append(channel_id)
+    return channel_id_list
+
+def requestChannelInfosFromChannelIDList(youtube,channel_ids):
+    response_list = []
+    for elem in channel_ids:
+        request = youtube.channels().list(
+            part="snippet,contentDetails,statistics",
+            id=elem
+        )
+        response = request.execute()
+        response_list.append(response)
+    return response_list
+
+
+
 
 
 def main():
@@ -87,19 +106,34 @@ def main():
     client_secrets_file = "client_secret_1080473066558-rh5ihim77tc3qbpvparpjnts926tuk3t.apps.googleusercontent.com.json"
 
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=api_key)
-    request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
-        id="UCGIY_O-8vW4rfX98KlMkvRg"
-    )
+    #request = youtube.channels().list(
+    #    part="snippet,contentDetails,statistics",
+    #    id="UCGIY_O-8vW4rfX98KlMkvRg"
+    #)
 
     # request = youtube.subscriptions().list(
     #    part="snippet,contentDetails",
     #    id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
     # )
-
+    request = youtube.search().list(
+        part="snippet"
+    )
     response = request.execute()
-    flattenAndParseSearchResponse(response)
+    #response_items = response.get('items')
+    pprint(response)
+    #response = request.execute()
+    channel_ids = getChannelListFromSearchResults(response)
+    pprint(channel_ids)
+    channel_infos = requestChannelInfosFromChannelIDList(youtube,channel_ids)
+    print(channel_infos)
 
+    #flattened_results = flattenAndParseSearchResponse(channel_infos)
+    flat_list = []
+    for elem in channel_infos:
+        flattened_results = flattenAndParseSearchResponse(elem)
+        flat_list.append(flattened_results)
+    pprint(flat_list)
+    #print(flattened_results)
 
 if __name__ == "__main__":
     main()
