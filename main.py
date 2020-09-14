@@ -37,8 +37,10 @@ def writeResponseToFile(response, filepath):
 
 
 def flattenAndParseSearchResponse(response):
-    # pprint(response)
-    items = response['items']
+    #pprint(response)
+    channel_title = response.get('channelTitle')
+    response = response.get('response')
+    items = response.get('items')
     list_of_dicts = []
     for elem in items:
         channel_id = elem.get('id')
@@ -49,6 +51,7 @@ def flattenAndParseSearchResponse(response):
         customUrl = snippet.get('customUrl')
         publish_date = snippet.get('publishedAt')
         title = snippet.get('title')
+        #channel_title = elem.get('channelTitle')
         commentCount = stats.get('commentCount')
         hidden_sub_count = stats.get('hiddenSubscriberCount')
         sub_count = stats.get('subscriberCount')
@@ -65,20 +68,26 @@ def flattenAndParseSearchResponse(response):
             'videoCount': video_count,
             'viewCount': view_count,
             'customUrl': customUrl,
-            'title': title
+            'title': title,
+            'channelTitle': channel_title
 
         }
         list_of_dicts.append(channel_data)
-    pprint(list_of_dicts)
     return list_of_dicts
 
 def getChannelListFromSearchResults(results):
-    items = results['items']
+    items = results.get('items')
     channel_id_list = []
     for elem in items:
         snippet = elem.get('snippet')
         channel_id = snippet.get('channelId')
-        channel_id_list.append(channel_id)
+        channel_title = snippet.get('channelTitle')
+        current_dict = {
+            'channelId': channel_id,
+            'channelTitle': channel_title
+        }
+        channel_id_list.append(current_dict)
+        #channel_id_list.append(channel_id)
     return channel_id_list
 
 def requestChannelInfosFromChannelIDList(youtube,channel_ids):
@@ -86,10 +95,14 @@ def requestChannelInfosFromChannelIDList(youtube,channel_ids):
     for elem in channel_ids:
         request = youtube.channels().list(
             part="snippet,contentDetails,statistics",
-            id=elem
+            id=elem.get('channelId')
         )
         response = request.execute()
-        response_list.append(response)
+        current_dict = {
+            'response':response,
+            'channelTitle': elem.get('channelTitle')
+        }
+        response_list.append(current_dict)
     return response_list
 
 
@@ -116,16 +129,16 @@ def main():
     #    id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
     # )
     request = youtube.search().list(
-        part="snippet"
+        maxResults=1, order='viewCount', part='snippet', type='channel'
     )
     response = request.execute()
     #response_items = response.get('items')
     pprint(response)
     #response = request.execute()
     channel_ids = getChannelListFromSearchResults(response)
-    pprint(channel_ids)
+    #pprint(channel_ids)
     channel_infos = requestChannelInfosFromChannelIDList(youtube,channel_ids)
-    print(channel_infos)
+    #print(channel_infos)
 
     #flattened_results = flattenAndParseSearchResponse(channel_infos)
     flat_list = []
