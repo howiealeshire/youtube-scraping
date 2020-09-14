@@ -11,9 +11,10 @@
         3.) Get average of all views per vid
         4.) average views/subscriber count
 """
-
+import csv
 from pprint import pprint
 import os
+import xlsxwriter
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -41,7 +42,7 @@ def flattenAndParseSearchResponse(response):
     channel_title = response.get('channelTitle')
     response = response.get('response')
     items = response.get('items')
-    list_of_dicts = []
+    curr_dict = {}
     for elem in items:
         channel_id = elem.get('id')
         kind = elem.get('kind')
@@ -58,22 +59,25 @@ def flattenAndParseSearchResponse(response):
         video_count = stats.get('videoCount')
         view_count = stats.get('viewCount')
         channel_data = {
-            'id': channel_id,
-            'kind': kind,
-            'country': country,
-            'publishedAt': publish_date,
-            'commentCount': commentCount,
-            'hiddenSubscriberCount': hidden_sub_count,
-            'subscriberCount': sub_count,
-            'videoCount': video_count,
-            'viewCount': view_count,
-            'customUrl': customUrl,
-            'title': title,
-            'channelTitle': channel_title
+            #'id': channel_id,
+            #'kind': kind,
+            #'country': country,
+            #'publishedAt': publish_date,
+            #'commentCount': commentCount,
+            #'hiddenSubscriberCount': hidden_sub_count,
 
+            #'videoCount': video_count,
+            'Title': title,
+            'Subscriber Count': sub_count,
+            'View Count': view_count,
+            #'customUrl': customUrl,
+
+            #'channelTitle': channel_title,
+            'Engagement': int(view_count)/int(sub_count)
         }
-        list_of_dicts.append(channel_data)
-    return list_of_dicts
+        curr_dict = channel_data
+        #list_of_dicts.append(channel_data)
+    return curr_dict
 
 def getChannelListFromSearchResults(results):
     items = results.get('items')
@@ -107,6 +111,14 @@ def requestChannelInfosFromChannelIDList(youtube,channel_ids):
 
 
 
+def write_dictlist_to_csv(dict_list):
+    with open('output.csv', 'w', encoding='utf8', newline='') as output_file:
+        fc = csv.DictWriter(output_file,
+                            fieldnames=dict_list[0].keys(),
+
+                            )
+        fc.writeheader()
+        fc.writerows(dict_list)
 
 
 def main():
@@ -129,7 +141,7 @@ def main():
     #    id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
     # )
     request = youtube.search().list(
-        maxResults=1, order='viewCount', part='snippet', type='channel'
+        maxResults=25, order='viewCount', part='snippet', type='channel'
     )
     response = request.execute()
     #response_items = response.get('items')
@@ -147,6 +159,7 @@ def main():
         flat_list.append(flattened_results)
     pprint(flat_list)
     #print(flattened_results)
+    write_dictlist_to_csv(flat_list)
 
 if __name__ == "__main__":
     main()
