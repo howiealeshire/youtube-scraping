@@ -83,6 +83,13 @@ def flattenAndParseSearchResponse(response):
         sub_count = stats.get('subscriberCount')
         video_count = stats.get('videoCount')
         view_count = stats.get('viewCount')
+        if int(view_count) == 0:
+            break
+        engagement = 0
+        if int(sub_count) > 0:
+            engagement = int(view_count) / int(sub_count)
+        else:
+            break
         channel_data = {
             # 'id': channel_id,
             # 'kind': kind,
@@ -98,7 +105,8 @@ def flattenAndParseSearchResponse(response):
             # 'customUrl': customUrl,
 
             # 'channelTitle': channel_title,
-            'Engagement': int(view_count) / int(sub_count)
+            'Engagement': engagement
+
         }
         curr_dict = channel_data
         # list_of_dicts.append(channel_data)
@@ -151,26 +159,29 @@ def makeSearchRequestsForNRecords(youtube, n):
     request_array = []
     response_array = []
     next_page_token = 'a'
-    while n >= 50 and next_page_token is not None:
+    while n > 0 and next_page_token is not None:
         if len(request_array) == 0:
             request = youtube.search().list(
-                maxResults=50, order='viewCount', part='snippet', type='channel'
+                maxResults=n, order='viewCount', part='snippet', type='channel'
             )
         else:
             request = youtube.search().list(
-                maxResults=50, order='viewCount', part='snippet', type='channel', pageToken=next_page_token
+                maxResults=n, order='viewCount', part='snippet', type='channel', pageToken=next_page_token
             )
         response = request.execute()
         response_array.append(response)
         next_page_token = response.get('nextPageToken')
         request_array.append(request)
         n -= 50
+    """
     if n > 0:
         request = youtube.search().list(
             maxResults=50, order='viewCount', part='snippet', type='channel'
         )
         request_array.append(request)
         response_array.append(request.execute())
+        n -= 50
+    """
     return request_array, response_array
 
 
@@ -178,7 +189,7 @@ def initializeYoutubeClient():
     # Disable OAuthlib's HTTPS verification when running locally.
     # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    api_key = "AIzaSyDLT1w9RuCvXpeY3i6CRiM7gPD4Vf_0VEI"
+    api_key = "AIzaSyAxJwOIw91bTDYHXaIcLbZzT8rqVLovt-k" #"AIzaSyDLT1w9RuCvXpeY3i6CRiM7gPD4Vf_0VEI"
     api_service_name = "youtube"
     api_version = "v3"
     client_secrets_file = "client_secret_1080473066558-rh5ihim77tc3qbpvparpjnts926tuk3t.apps.googleusercontent.com.json"
@@ -216,13 +227,14 @@ def flattenAndParseSearchResponses(channel_infos_list):
     for channel_infos in channel_infos_list:
         for channel_info in channel_infos:
             flattened_result = flattenAndParseSearchResponse(channel_info)
-            flattened_results.append(flattened_result)
+            if flattened_result:
+                flattened_results.append(flattened_result)
     return flattened_results
 
 
 def main():
     youtube = initializeYoutubeClient()
-    request_array, response_array = makeSearchRequestsForNRecords(youtube, 101)
+    request_array, response_array = makeSearchRequestsForNRecords(youtube, 51)
     channel_id_lists = getChannelListsFromResponseArray(response_array)
     channel_infos_list = requestChannelInfosFromListOfChannelIDList(youtube, channel_id_lists)
     flattened_responses = flattenAndParseSearchResponses(channel_infos_list)
