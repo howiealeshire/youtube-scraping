@@ -4,13 +4,6 @@
 # See instructions for running these code samples locally:
 # https://developers.google.com/explorer-help/guides/code_samples#python
 
-"""High level goal: get total number of followers to video views ratio
-   Calculate:
-        1.) Get total number of subscribers for a channel
-        2.) Get total number of views for all videos combined
-        3.) Get average of all views per vid
-        4.) average views/subscriber count
-"""
 import csv
 from pprint import pprint
 import os
@@ -60,6 +53,19 @@ def getNChannelsWithTopViewedVids(youtube, num_results):
 
 def writeResponseToFile(response, filepath):
     pass
+
+def retrieve_all_page_tokens(filepath):
+    with open(filepath) as f:
+        return f.read().splitlines()
+
+def get_unused_tokens(used_tokens_path,all_tokens_path):
+    used_tokens = []
+    all_tokens = []
+    with open(used_tokens_path) as f:
+        used_tokens = f.read().splitlines()
+    with open(all_tokens_path) as f:
+        all_tokens = f.read().splitlines()
+    return set(all_tokens) - set(used_tokens)
 
 
 def flattenAndParseSearchResponse(response):
@@ -146,7 +152,7 @@ def requestChannelInfosFromChannelIDList(youtube, channel_ids):
 
 
 def write_dictlist_to_csv(dict_list):
-    with open('output.csv', 'w', encoding='utf8', newline='') as output_file:
+    with open('output.csv', 'a', encoding='utf8', newline='') as output_file:
         fc = csv.DictWriter(output_file,
                             fieldnames=dict_list[0].keys(),
 
@@ -154,25 +160,71 @@ def write_dictlist_to_csv(dict_list):
         fc.writeheader()
         fc.writerows(dict_list)
 
+def get_used_tokens(used_tokens_path):
+    with open(used_tokens_path) as f:
+        used_tokens = f.read().splitlines()
+        return used_tokens
 
-def makeSearchRequestsForNRecords(youtube, n):
+def makeSearchRequestsForNRecords(youtube, n, tokens_to_use=[],used_tokens=[]):
     request_array = []
     response_array = []
     next_page_token = 'a'
+    page_token_arr = []
+    if(len(used_tokens) != 0):
+        token_to_start_today = used_tokens[-1]
+    else:
+        token_to_start_today = "CDIQAA"
+        page_token_arr.append(token_to_start_today)
+
+    i = 0
     while n > 0 and next_page_token is not None:
-        if len(request_array) == 0:
+        if i == 0:
             request = youtube.search().list(
-                maxResults=n, order='viewCount', part='snippet', type='channel'
+                maxResults=50, order='viewCount', part='snippet', type='channel', pageToken=token_to_start_today
             )
+            i += 1
         else:
             request = youtube.search().list(
-                maxResults=n, order='viewCount', part='snippet', type='channel', pageToken=next_page_token
+                maxResults=50, order='viewCount', part='snippet', type='channel', pageToken=next_page_token
             )
+            i += 1
+        response = request.execute()
+        if i > 1:
+            response_array.append(response)
+        next_page_token = response.get('nextPageToken')
+        if i > 1:
+            page_token_arr.append(next_page_token)
+        if i > 1:
+            request_array.append(request)
+        n -= 50
+    used_tokens = get_used_tokens('used_tokens')
+    with open('used_tokens', 'a') as f:
+        for item in page_token_arr:
+            if item not in used_tokens:
+                f.write("%s\n" % item)
+    """
+    for token in tokens_to_use:
+        if len(used_tokens) == 0:
+            request = youtube.search().list(
+                maxResults=50, order='viewCount', part='snippet', type='channel'
+            )
+            tokens_used_today.append(token)
+            used_tokens.append(token)
+        else:
+            request = youtube.search().list(
+                maxResults=50, order='viewCount', part='snippet', type='channel', pageToken=token
+            )
+            tokens_used_today.append(token)
         response = request.execute()
         response_array.append(response)
-        next_page_token = response.get('nextPageToken')
         request_array.append(request)
-        n -= 50
+    with open('used_tokens', 'a') as f:
+        for item in tokens_used_today:
+            f.write("%s\n" % item)
+    """
+    """
+    
+    """
     """
     if n > 0:
         request = youtube.search().list(
@@ -183,6 +235,8 @@ def makeSearchRequestsForNRecords(youtube, n):
         n -= 50
     """
     return request_array, response_array
+
+
 
 
 def initializeYoutubeClient():
@@ -232,13 +286,23 @@ def flattenAndParseSearchResponses(channel_infos_list):
     return flattened_results
 
 
+
 def main():
     youtube = initializeYoutubeClient()
-    request_array, response_array = makeSearchRequestsForNRecords(youtube, 51)
+    unused_tokens = get_unused_tokens("used_tokens","youtube_page_tokens")
+    used_tokens = get_used_tokens('used_tokens')
+    request_array, response_array = makeSearchRequestsForNRecords(youtube,150,[], used_tokens)
+    print("request array")
+    pprint(request_array)
+    print("response array")
+    pprint(response_array)
     channel_id_lists = getChannelListsFromResponseArray(response_array)
     channel_infos_list = requestChannelInfosFromListOfChannelIDList(youtube, channel_id_lists)
     flattened_responses = flattenAndParseSearchResponses(channel_infos_list)
     write_dictlist_to_csv(flattened_responses)
+#493
+def main_test():
+    pprint(get_unused_tokens("used_tokens","youtube_page_tokens"))
 
 if __name__ == "__main__":
     main()
