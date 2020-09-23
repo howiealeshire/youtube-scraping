@@ -6,6 +6,7 @@ from pprint import pprint
 import os, uuid
 
 import psycopg2
+import psycopg2.extras
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, __version__
 
 import xlsxwriter
@@ -14,35 +15,13 @@ import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 import itertools
-from pypika import Query, Table, Field
+from pypika import Query, Table, Field, PostgreSQLQuery
 from datetime import datetime
+
+from pypika.terms import Values
 
 scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 
-
-def throwawaycode():
-    # request = youtube.channels().list(
-    #    part="snippet,contentDetails,statistics",
-    #    id="UCGIY_O-8vW4rfX98KlMkvRg"
-    # )
-
-    # request = youtube.subscriptions().list(
-    #    part="snippet,contentDetails",
-    #    id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
-    # )
-    """
-    flat_list = []
-    for elem in channel_infos:
-        flattened_results = flattenAndParseSearchResponse(elem)
-        flat_list.append(flattened_results)
-    pprint(flat_list)
-    """
-    """
-    channel_ids = getChannelListFromSearchResults(response)
-    channel_infos = requestChannelInfosFromChannelIDList(youtube, channel_ids)
-    write_dictlist_to_csv(flat_list)
-    """
-    pass
 
 
 def retrieve_all_page_tokens(filepath):
@@ -64,73 +43,68 @@ def flattenAndParseChannelResponse(response):
     # pprint(response)
     print("SHOULD NOT BE NONE")
     pprint(response)
-    items = response.get('items')
+    # items = response.get('items')
     curr_dict = {}
-    for elem in items:
-        channel_id = elem.get('id')
-        kind = elem.get('kind')
-        snippet = elem.get('snippet')
-        stats = elem.get('statistics')
-        country = snippet.get('country')
-        customUrl = snippet.get('customUrl')
-        publish_date = snippet.get('publishedAt')
-        title = snippet.get('title')
-        # channel_title = elem.get('channelTitle')
-        commentCount = stats.get('commentCount')
-        hidden_sub_count = stats.get('hiddenSubscriberCount')
-        sub_count = stats.get('subscriberCount')
-        video_count = stats.get('videoCount')
-        view_count = stats.get('viewCount')
-        if int(view_count) == 0:
-            break
-        engagement = 0
-        if int(sub_count) > 0:
-            engagement = int(view_count) / int(sub_count)
-        else:
-            break
-        channel_data = {
+    channel_id = response.get('id')
+    kind = response.get('kind')
+    snippet = response.get('snippet')
+    stats = response.get('statistics')
+    country = snippet.get('country')
+    customUrl = snippet.get('customUrl')
+    publish_date = snippet.get('publishedAt')
+    title = snippet.get('title')
+    # channel_title = elem.get('channelTitle')
+    commentCount = stats.get('commentCount')
+    hidden_sub_count = stats.get('hiddenSubscriberCount')
+    sub_count = stats.get('subscriberCount')
+    video_count = stats.get('videoCount')
+    view_count = stats.get('viewCount')
+    if int(view_count) == 0:
+        pass
+        # break
+    engagement = 0
+    if int(sub_count) > 0:
+        engagement = int(view_count) / int(sub_count)
+    else:
+        pass
+        # break
+    channel_data = {
 
-            # 'kind': kind,
-            # 'country': country,
-            # 'publishedAt': publish_date,
-            # 'commentCount': commentCount,
-            # 'hiddenSubscriberCount': hidden_sub_count,
-            'kind': response.get('kind'),
-            'Channel Id': channel_id,
-            # 'videoCount': video_count,
-            'Title': title,
-            'Subscriber Count': sub_count,
-            'Video Count': video_count,
-            'View Count': view_count,
-            # 'customUrl': customUrl,
+        # 'kind': kind,
+        # 'country': country,
+        # 'publishedAt': publish_date,
+        # 'commentCount': commentCount,
+        # 'hiddenSubscriberCount': hidden_sub_count,
+        'kind': response.get('kind'),
+        'Channel Id': channel_id,
+        # 'videoCount': video_count,
+        'Title': title,
+        'Subscriber Count': sub_count,
+        'Video Count': video_count,
+        'View Count': view_count,
+        # 'customUrl': customUrl,
 
-            # 'channelTitle': channel_title,
-            'Engagement': engagement,
-            'Country': country
-        }
-        curr_dict = channel_data
-        # list_of_dicts.append(channel_data)
+        # 'channelTitle': channel_title,
+        'Engagement': engagement,
+        'Country': country
+    }
+    curr_dict = channel_data
+    # list_of_dicts.append(channel_data)
+    # for elem in response:
+
     return curr_dict
 
 
 def flattenAndParseSearchResponse(response):
     # pprint(response)
-    channel_title = response.get('channelTitle')
-    response = response.get('response')
-    items = response.get('items')
     curr_dict = {}
-    for elem in items:
+    for elem in response:
+        """
         channel_id = elem.get('id')
         kind = elem.get('kind')
         snippet = elem.get('snippet')
         stats = elem.get('statistics')
-        country = snippet.get('country')
-        customUrl = snippet.get('customUrl')
-        publish_date = snippet.get('publishedAt')
-        title = snippet.get('title')
         # channel_title = elem.get('channelTitle')
-        commentCount = stats.get('commentCount')
-        hidden_sub_count = stats.get('hiddenSubscriberCount')
         sub_count = stats.get('subscriberCount')
         video_count = stats.get('videoCount')
         view_count = stats.get('viewCount')
@@ -142,14 +116,15 @@ def flattenAndParseSearchResponse(response):
             engagement = int(view_count) / int(sub_count)
         else:
             break
+        """
         # query, page_tokens_used, channel_id, order, video_id
         # dictionary will return null for query and page token since I haven't added those fields yet TODO
         channel_data = {
-            'kind': kind,
-            'query': response.get('query'),
-            'page_tokens_used': response.get('page_tokens_used'),
-            'id': channel_id,
-            'Engagement': engagement
+            'kind': elem.get('kind'),
+            'query': elem.get('query'),
+            'page_tokens_used': elem.get('page_tokens_used'),
+            'id': elem.get('id'),
+            'Engagement': elem.get('engagement')  # engagement
         }
         curr_dict = channel_data
         # list_of_dicts.append(channel_data)
@@ -241,15 +216,14 @@ def removeDuplicateEntriesFromFile(path):
     pass
 
 
-def write_dictlist_to_csv(dict_list):
+def write_dictlist_to_csv(dict_list,file_name):
     if (len(dict_list) > 0):
-        with open('output_temp.csv', 'a', encoding='utf8', newline='') as output_file:
+        with open(file_name, 'a', encoding='utf8', newline='') as output_file:
             fc = csv.DictWriter(output_file,
                                 fieldnames=dict_list[0].keys(),
 
                                 )
-            if isFirstTimeWritingToOutputFile('output_temp.csv'):
-                fc.writeheader()
+            fc.writeheader()
             fc.writerows(dict_list)
     else:
         print("No items to write. Aborting.")
@@ -407,14 +381,17 @@ def makeSearchRequestsForNRecords(youtube, n, used_tokens=[], channel_id="", mos
     return request_array, response_array
 
 
-def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params):
+def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=False):
     request_array = []
     response_array = []
     next_page_token = 'a'
+    page_token_array = []
 
     def create_request(**kwargs):
-        return youtube.search().list(**kwargs)
-
+        if(video == False):
+            return youtube.search().list(**kwargs)
+        else:
+            return youtube.videos().list(**kwargs)
     try:
         while num_pages >= 1 and next_page_token:
             request = create_request(**search_params)
@@ -423,8 +400,11 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params):
             response_array.append(response)
             pprint(response)
             next_page_token = response.get('nextPageToken')
+            page_token_array.append(next_page_token)
+            # request["page_tokens_used"] = page_token_array #this is probs not gonna work,
             request_array.append(request)
             num_pages -= 1
+
     except googleapiclient.errors.HttpError:
         print("HTTP Error. Nothing written. Aborting")
         sys.exit()
@@ -509,10 +489,34 @@ def flattenAndParseChanneListResponse(response):
     pass
 
 
-def flattenAndParseResponses(responses):
-    parsed_responses = []
-    for response in responses:
-        kind = response.get('kind')
+def flattenAndParseResponses(responses, video=False):
+    if video == True:
+        parsed_responses = []
+        #items = responses.get('items')
+        #items = items[0]
+        kind = responses.get('kind')
+        #id = items.get('id')
+        #print("ITEMS2222")
+        #pprint(items)
+        # id = response.get('id')
+        # kind = id.get('kind')
+        # response = id
+        response = responses
+    else:
+        parsed_responses = []
+        items = responses.get('items')
+        items = items[0]
+        kind = items.get('kind')
+        id = items.get('id')
+        print("ITEMS2222")
+        pprint(items)
+        # id = response.get('id')
+        # kind = id.get('kind')
+        # response = id
+        response = items
+
+
+    if response is not None:
         if kind == "youtube#searchListResponse":
             parsed_response = flattenAndParseSearchResponse(response.get('items'))
             parsed_responses.append(parsed_response)
@@ -533,6 +537,8 @@ def flattenAndParseResponses(responses):
             parsed_responses.append(parsed_response)
         else:
             print("No known kind: " + kind)
+        # for response in items:
+
     return parsed_responses
 
 
@@ -549,15 +555,19 @@ def addResponseToDB(connection, response):
         pg_table = Table('channels')
         pass
     elif kind == "youtube#searchResult":
-        pg_table = Table('searches')
+        pg_table = ""  # Table('searches')
     else:
         print("No known kind: " + kind)
 
     if pg_table != "":
         # does the args splitting work here? must check later.
         response.pop('kind')
-        pg_query = pg_table.insert(*response)
+        pg_query2 = PostgreSQLQuery.into(pg_table).insert(*response.values())
+        pg_query = pg_query2.on_conflict().do_nothing()
+        pprint(pg_query.get_sql())
+
         cursor.execute(pg_query.get_sql())
+    cursor.close()
 
 
 def flattenAndParseVideoResponse(response):
@@ -724,7 +734,7 @@ def main_azure():
     EndpointSuffix=core.windows.net"""
     try:
         local_path = "data"
-        local_file_name = "analysis_youtube_2020-09-17.csv"
+        local_file_name = "top_youtube_2020-09-22.csv" #"analysis_youtube_2020-09-22.csv"
         upload_file_path = os.path.join(local_path, local_file_name)
 
         print("Azure Blob storage v" + __version__ + " - Python quickstart sample")
@@ -794,7 +804,7 @@ def main_postgres():
     pass
 
 
-def update_export_status(connection, responses):
+def update_export_status(connection, responses, value='TRUE'):
     pg_table = ''
     cursor = connection.cursor()
     # exported_already, date_of_export
@@ -803,19 +813,75 @@ def update_export_status(connection, responses):
         video_id = response.get('Video Id')
         if channel_id is not None:
             pg_table = Table('channels')
-            query1 = Query.update(pg_table).set(pg_table.exported_already, 'TRUE')
+            query1 = Query.update(pg_table).set(pg_table.exported_already,value)
             query2 = Query.update(pg_table).set(pg_table.date_of_export, str(datetime.today().strftime('%Y-%m-%d')))
             cursor.execute(query1.get_sql())
             cursor.execute(query2.get_sql())
         if video_id is not None:
             pg_table = Table('videos')
-            query1 = Query.update(pg_table).set(pg_table.exported_already, 'TRUE')
+            query1 = Query.update(pg_table).set(pg_table.exported_already, value)
             query2 = Query.update(pg_table).set(pg_table.date_of_export, str(datetime.today().strftime('%Y-%m-%d')))
             cursor.execute(query1.get_sql())
             cursor.execute(query2.get_sql())
 
 
-def main_postgres_clean():
+def getChannelOrVidResponsesFromSearchResponse(youtube, search_response):
+    # search_response.get('items')
+    responses = []
+    for item in search_response.get('items'):
+        id = item.get('id')
+        if id is not None:
+            channel_id = id.get('channelId')
+            video_id = id.get('videoId')
+            request = ""
+            response = ""
+            if channel_id is not None:
+                request = youtube.channels().list(
+                    part="snippet,contentDetails,statistics",
+                    id=channel_id
+                )
+                response = request.execute()
+                responses.append(response)
+            elif video_id is not None:
+                request = youtube.channels().list(
+                    part="snippet,contentDetails,statistics",
+                    id=video_id
+                )
+                response = request.execute()
+                responses.append(response)
+            else:
+                print("Can't convert search response")
+                # might need to add some error handling in code in case something is up
+
+    return responses
+
+
+# converted responses (ones that were converted from search results  to video results)
+# come in the form of 2d arrays. So here, I iterate through them, and pass them into
+# the flatten and parse function
+def flattenAndParseConvertedResponses(converted_responses):
+    pass
+
+
+def get_unexported_channels(conn,table_name):
+    channels = Table(table_name)
+    q = PostgreSQLQuery.from_(channels).select(channels.star).where(channels.exported_already == 'FALSE')
+
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute(q.get_sql())
+    ans = cur.fetchall()
+    ans1 = []
+    for row in ans:
+        ans1.append(dict(row))
+
+    #cursor = conn.cursor()
+    #cursor.execute(q.get_sql())
+    #rows = cursor.fetchall()
+    pprint(ans1)
+    return ans1
+
+
+def main_postgres_clean_channels_workflow():
     youtube = initializeYoutubeClient()
     connection = psycopg2.connect(user="postgres",
                                   password="test",
@@ -824,22 +890,153 @@ def main_postgres_clean():
                                   database="postgres")
     unused_tokens = get_unused_tokens("used_tokens", "youtube_page_tokens")
     used_tokens = get_used_tokens('used_tokens_temp')
-    search_params_most_popular = dict(maxResults=50, part='snippet,contentDetails,statistics',
+    search_params_most_popular = dict(maxResults=5, part='snippet,contentDetails,statistics',
                                       chart="mostPopular", pageToken="CDIQAA",
                                       regionCode="US")
     search_params = dict(maxResults=50, order='viewCount', part='snippet', type='channel',
                          pageToken="CDIQAA")
 
-    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, 2, search_params)
+    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, 3, search_params)
+    converted_response_array = []
+    for response in response_array:
+        converted_request = getChannelOrVidResponsesFromSearchResponse(youtube, response)
+        converted_response_array.append(converted_request)
+
+    print("CONVERTED REQUEST ARRAY")
+    pprint(converted_response_array[0])
+    print(len(converted_response_array[0]))
+    pprint(converted_response_array[0])
+    print("TEST TEST")
+    pprint(converted_response_array[0][0])
+    pprint("Converted Response Array Full")
+    pprint(converted_response_array)
+    merged = list(itertools.chain.from_iterable(converted_response_array))
+    parsed_flattened_arr = []
+    for elem in merged:
+        parsed_response2 = flattenAndParseResponses(elem)
+        parsed_flattened_arr.append(parsed_response2)
+        print("flattened response stuff")
+        pprint(parsed_response2)
+    print("Converted response array flattened")
+    pprint(merged)
+
+    print("PARSED RESPONSES")
+    pprint(parsed_flattened_arr)
+    parsed_flattened_arr = list(itertools.chain.from_iterable(parsed_flattened_arr))
+    print("flat flat flat flat")
+    pprint(parsed_flattened_arr)
+    for response in parsed_flattened_arr:
+        addResponseToDB(connection, response)
+    # cursor = connection.cursor()
+    # cursor.execute('INSERT INTO "channels" VALUES (\'UCEuOwB9vSL1oPKGNdONB4ig\',\'Red Hot Chili '
+    # "Peppers','5590000','139','4296643902',768.6303939177102,'US')")
+    channels = Table('channels')
+    q = Query.from_(channels).select(channels.star)
+    pprint(q.get_sql())
+    final_dict = get_unexported_channels(connection,'channels')
+    update_export_status(connection, parsed_flattened_arr,'TRUE')
+    if (connection):
+        # cursor.close()
+        connection.commit()
+        connection.close()
+        print("PostgreSQL connection is closed")
+    write_dictlist_to_csv(final_dict,'top_channels.csv')
+    """
     parsed_responses = flattenAndParseResponses(response_array)
     print("Parsed Responses:")
-    print(parsed_responses)
+    pprint(parsed_responses)
     # merged = list(itertools.chain.from_iterable(parsed_responses))
-    for response in parsed_responses:
-        addResponseToDB(connection, response)
+    
+    """
 
-    write_dictlist_to_csv(parsed_responses)
-    update_export_status(connection,parsed_responses)
+
+def make_embed_url(list_of_vid_responses):
+    # https://www.youtube.com/watch?v=123456 to https://www.youtube.com/embed/123456
+    for elem in list_of_vid_responses:
+        vid_id = elem.get('video_id')
+        if vid_id is not None:
+            embed_url = "https://www.youtube.com/embed/" + str(vid_id)
+            elem['embed_url'] = embed_url
+    return list_of_vid_responses
+
+def main_postgres_clean_vids_workflow():
+    youtube = initializeYoutubeClient()
+    connection = psycopg2.connect(user="postgres",
+                                  password="test",
+                                  host="127.0.0.1",
+                                  port="5432",
+                                  database="postgres")
+    unused_tokens = get_unused_tokens("used_tokens", "youtube_page_tokens")
+    used_tokens = get_used_tokens('used_tokens_temp')
+    search_params_most_popular = dict(maxResults=10, part='snippet,contentDetails,statistics',
+                                      chart="mostPopular", pageToken="CDIQAA",
+                                      regionCode="US")
+    search_params = dict(maxResults=10, order='viewCount', part='snippet', type='channel',
+                         pageToken="CDIQAA")
+
+    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, 1, search_params_most_popular,True)
+    converted_response_array = response_array
+    #for response in response_array:
+    #    converted_request = getChannelOrVidResponsesFromSearchResponse(youtube, response)
+    #    converted_response_array.append(converted_request)
+    """
+    print("CONVERTED REQUEST ARRAY")
+    pprint(converted_response_array[0])
+    print(len(converted_response_array[0]))
+    pprint(converted_response_array[0])
+    print("TEST TEST")
+    pprint(converted_response_array[0][0])
+    pprint("Converted Response Array Full")
+    pprint(converted_response_array)
+    """
+    #merged = list(itertools.chain.from_iterable(converted_response_array))
+    merged = []
+    for elem in response_array:
+        merged.append(elem.get('items'))
+    merged = list(itertools.chain.from_iterable(merged))
+    print('MERGED')
+    pprint(merged)
+    parsed_flattened_arr = []
+    for elem in merged:
+        parsed_response2 = flattenAndParseResponses(elem,True)
+        parsed_flattened_arr.append(parsed_response2)
+        print("flattened response stuff")
+        pprint(parsed_response2)
+    print("Converted response array flattened")
+    pprint(merged)
+
+    print("PARSED RESPONSES")
+    pprint(parsed_flattened_arr)
+    parsed_flattened_arr = list(itertools.chain.from_iterable(parsed_flattened_arr))
+    print("flat flat flat flat")
+    pprint(parsed_flattened_arr)
+    for response in parsed_flattened_arr:
+        addResponseToDB(connection, response)
+    # cursor = connection.cursor()
+    # cursor.execute('INSERT INTO "channels" VALUES (\'UCEuOwB9vSL1oPKGNdONB4ig\',\'Red Hot Chili '
+    # "Peppers','5590000','139','4296643902',768.6303939177102,'US')")
+    channels = Table('channels')
+    q = Query.from_(channels).select(channels.star)
+    pprint(q.get_sql())
+    final_dict = get_unexported_channels(connection,'videos')
+    update_export_status(connection, parsed_flattened_arr, 'TRUE')
+    final_dict = make_embed_url(final_dict)
+    if (connection):
+        # cursor.close()
+        connection.commit()
+        connection.close()
+        print("PostgreSQL connection is closed")
+    write_dictlist_to_csv(final_dict,'top10videos.csv')
+    """
+    parsed_responses = flattenAndParseResponses(response_array)
+    print("Parsed Responses:")
+    pprint(parsed_responses)
+    # merged = list(itertools.chain.from_iterable(parsed_responses))
+
+    """
+
 
 if __name__ == "__main__":
-    main_postgres_clean()
+    #main_postgres_clean_vids_workflow()
+    #main_postgres_clean_channels_workflow()
+    main_azure()
