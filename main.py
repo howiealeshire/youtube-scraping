@@ -7,6 +7,7 @@ import os, uuid
 import psycopg2
 import psycopg2.extras
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, __version__
+from datetime import datetime
 
 import xlsxwriter
 
@@ -710,14 +711,14 @@ def get_videos_from_channel(youtube, channel_id):
     pass
 
 
-def main_azure():
+def main_azure(local_file_name):
     """DefaultEndpointsProtocol=https;
     AccountName=tiktokscraper;
     AccountKey=DJTlaX2lUjgsxZTF6Oy37REj7EUTvLpmxooE/cJUnD3dr48xiFz8RSt8YhZJ6Rbi1yxJ1WNnCyjXR8jYRifDKQ==;
     EndpointSuffix=core.windows.net"""
     try:
         local_path = "data"
-        local_file_name = "top_instagram_2020-10-06.csv" #"top_youtube_2020-09-25.csv" #"analysis_youtube_2020-09-22.csv"
+        # local_file_name = "top_instagram_2020-10-06.csv" #"top_youtube_2020-09-25.csv" #"analysis_youtube_2020-09-22.csv"
         upload_file_path = os.path.join(local_path, local_file_name)
 
         print("Azure Blob storage v" + __version__ + " - Python quickstart sample")
@@ -876,7 +877,7 @@ def main_postgres_clean_channels_workflow():
                                       chart="mostPopular", pageToken="CDIQAA",
                                       regionCode="US")
     search_params = dict(maxResults=50, order='viewCount', part='snippet', type='channel',
-                         pageToken="CDIQAA", q='WWE')
+                         pageToken="CDIQAA", q='documentary')
 
     request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, 3, search_params)
     converted_response_array = []
@@ -922,7 +923,11 @@ def main_postgres_clean_channels_workflow():
         connection.commit()
         connection.close()
         print("PostgreSQL connection is closed")
-    write_dictlist_to_csv(final_dict, 'top_channels.csv')
+    chosen_date = datetime.today().strftime('%Y-%m-%d')
+    top_users = "analysis_" + 'youtube' + "_" + chosen_date + ".csv"
+    path_to_write_to = os.path.join('data',top_users)
+
+    write_dictlist_to_csv(final_dict, path_to_write_to)
     """
     parsed_responses = flattenAndParseResponses(response_array)
     print("Parsed Responses:")
@@ -956,7 +961,7 @@ def main_postgres_clean_vids_workflow():
     search_params = dict(maxResults=10, order='viewCount', part='snippet', type='channel',
                          pageToken="CDIQAA")
 
-    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube,2 , search_params_most_popular, True)
+    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, 2, search_params_most_popular, True)
     converted_response_array = response_array
     # for response in response_array:
     #    converted_request = getChannelOrVidResponsesFromSearchResponse(youtube, response)
@@ -1008,7 +1013,11 @@ def main_postgres_clean_vids_workflow():
         connection.commit()
         connection.close()
         print("PostgreSQL connection is closed")
-    write_dictlist_to_csv(final_dict, 'top10videos.csv')
+
+    chosen_date = datetime.today().strftime('%Y-%m-%d')
+    top_posts = "top_" + 'youtube' + "_" + chosen_date + ".csv"
+    path_to_write_to = os.path.join('data',top_posts)
+    write_dictlist_to_csv(final_dict, path_to_write_to)
     """
     parsed_responses = flattenAndParseResponses(response_array)
     print("Parsed Responses:")
@@ -1018,7 +1027,24 @@ def main_postgres_clean_vids_workflow():
     """
 
 
+def run_exports():
+    def get_file_names(chosen_date=datetime.today().strftime('%Y-%m-%d'), platforms=('instagram', 'youtube')):
+        filename_list = []
+        for platform in platforms:
+            top_users = "analysis_" + platform + "_" + chosen_date + ".csv"
+            top_posts = "top_" + platform + "_" + chosen_date + ".csv"
+            filename_list.append(top_users)
+            filename_list.append(top_posts)
+        return filename_list
+
+    filenames = get_file_names()
+    for filename in filenames:
+        main_azure(filename)
+
+
+
 if __name__ == "__main__":
-    #main_postgres_clean_vids_workflow()
-    #main_postgres_clean_channels_workflow()
-    main_azure()
+    main_postgres_clean_vids_workflow()
+    main_postgres_clean_channels_workflow()
+    run_exports()
+    ##main_azure()
