@@ -33,8 +33,8 @@ def main_azure(local_file_name, local_path):
         container_name = "tiktokscraperdata"
         print("Container name: ")
         print(container_name)
-        container_client = ContainerClient.from_connection_string(conn_str=connect_str, container_name=container_name)
-        container_client.delete_blob(blob=local_file_name)
+        #container_client = ContainerClient.from_connection_string(conn_str=connect_str, container_name=container_name)
+        #container_client.delete_blob(blob=local_file_name)
 
         blob_client = blob_service_client.get_blob_client(container=container_name, blob=local_file_name)
         print(connect_str)

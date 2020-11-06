@@ -25,7 +25,7 @@ import urllib.request
 from better_profanity import profanity
 
 
-from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, addDictToDB
+from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, write_dict_to_db
 from instagram_dataflows import request_users_from_keyword_search, get_users_from_json, get_filtered_words
 
 
@@ -275,10 +275,10 @@ def main_test():
 
     for elem in top_post_dict_list:
         for item in elem:
-            addDictToDB(connection, item, 'instagram_post3')
+            write_dict_to_db(connection, item, 'instagram_post3')
     for elem in top_users_dict_list:
         for item in elem:
-            addDictToDB(connection, item, 'instagram_user3')
+            write_dict_to_db(connection, item, 'instagram_user3')
 
     connection.close()
     # path = "C:/Users/howie/PycharmProjects/pythonProject/instascraper/test8.csv"
@@ -369,6 +369,6 @@ def print_trace(result):
 if __name__ == "__main__":
     #main2()
 
-    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts2\test1132020.csv','test1132020.csv')
+    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test11062020_2.csv','test11062020_2.csv')
 
 

@@ -37,52 +37,10 @@ class InstagramSpider(scrapy.Spider):
 
     def start_requests(self):
         path = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\remaining_args.json'
-        user_accounts = ['dava_m',
-                         'dhanashree9',
-                         'daviddobrik',
-                         'dodgers',
-                         'merihdemiral',
-                         'design',
-                         'wejdene.bk',
-                         'devpadikkal19',
-                         'dixiedamelio',
-                         'danishsait',
-                         'dababy',
-                         'demirose',
-                         'doggface208',
-                         'desiperkins',
-                         'cowboycerrone',
-                         'rivadeneirak',
-                         'fedeevalverde',
-                         'donya',
-                         'daisykeech',
-                         'mecaigoderisaof',
-                         'douglasemhoff',
-                         'jojotodynho',
-                         'danlabilic',
-                         'pontiacmadeddg',
-                         'sophiedee',
-                         'danawhite',
-                         'ratandboa',
-                         'inijedar',
-                         '1demetozdemir',
-                         'dangershewrote',
-                         'domelipa',
-                         'lilhuddy',
-                         'duyguozaslan',
-                         'dojacat',
-                         'diamondplatnumz',
-                         'doritkemsley',
-                         'evaluna',
-                         'cukurdizi',
-                         'bretmanrock',
-                         'robkardashianofficial',
-                         'andreideiu_',
-                         'djokernole',
-                         'lesdomakeup',
-                         'stevewilldoit',
-                         'demetakalin',
-                         'd']
+        path2 = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape_today.json'
+        with open(path2) as f:
+            data = json.load(f)
+        user_accounts = data[-100:]
 
 
         # user_accounts = get_array_and_delete_from_file(path)

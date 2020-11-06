@@ -15,7 +15,7 @@ from attr import dataclass
 from better_profanity import profanity
 from cytoolz.functoolz import pipe
 from requests import Response
-from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, addDictToDB
+from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, write_dict_to_db
 from helper_functions import flatten_list
 
 def delayed(f):
@@ -38,7 +38,6 @@ def get_users_from_json(search_result: Dict[str,Any]) -> List[str]:
 
 
 
-@delayed
 def request_users_from_keyword_search(keyword) -> Response:
     """@impure_safe: Returns 100 results back."""
     return requests.get("https://www.instagram.com/web/search/topsearch/?context=blended&query=" + keyword)
