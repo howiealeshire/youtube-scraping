@@ -646,15 +646,26 @@ def get_category_ids_from_file(filepath='youtube_category_ids.txt'):
 
 
 
+
 def main_test_today():
-    channels = get_channels_and_only_write_to_db()
-    print("Finished")
-    pprint(channels)
+    conn = init_db_connection()
+    channels = load_db_table_unexported(conn,'channels')
+    vids = load_db_table_unexported(conn,'videos')
+    write_dictlist_to_csv(channels,r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\analysis_youtube_2020-11-09.csv')
+    write_dictlist_to_csv(vids,r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\top_youtube_2020-11-09.csv')
+    print(len(channels))
+    print(len(vids))
+
+    if conn:
+        conn.close()
+
+    pass
 
 if __name__ == "__main__":
     #print(len(unexported_channels))
     #main_test_today()
     # main_postgres_clean_channels_workflow()
     # main_test()
-    run_exports_temp('data')
+    run_exports_temp('export_today7')
+    #run_exports_temp('data')
     # main_azure()

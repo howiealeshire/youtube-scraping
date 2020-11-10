@@ -40,7 +40,7 @@ class InstagramSpider(scrapy.Spider):
         path2 = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape_today.json'
         with open(path2) as f:
             data = json.load(f)
-        user_accounts = data[-100:]
+        user_accounts = data[300:500]
 
 
         # user_accounts = get_array_and_delete_from_file(path)

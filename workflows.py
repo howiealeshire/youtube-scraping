@@ -1,9 +1,4 @@
 
-
-
-
-
-
 def main():
     """
     High level flow:
@@ -23,16 +18,8 @@ def main():
             !.) Search: searching for random words on insta to get users.
             2.)
     """
-    
-
-
-
     pass
+
 
 if __name__ == "__main__":
     print("hello")
-
-
-
-
-

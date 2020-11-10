@@ -1,0 +1,52 @@
+{'etag': 'L7K9L7mr2nUyqovGC8nigWI22RQ',
+ 'items': [{'contentDetails': {'relatedPlaylists': {'favorites': 'FLGIY_O-8vW4rfX98KlMkvRg',
+                                                    'likes': '',
+                                                    'uploads': 'UUGIY_O-8vW4rfX98KlMkvRg',
+                                                    'watchHistory': 'HL',
+                                                    'watchLater': 'WL'}},
+            'etag': 'GuvwzloBg9kBObpO6VEH6zbKJYY',
+            'id': 'UCGIY_O-8vW4rfX98KlMkvRg',
+            'kind': 'youtube#channel',
+            'snippet': {'country': 'US',
+                        'customUrl': 'nintendo',
+                        'description': 'Welcome to the official Nintendo '
+                                       "YouTube channel where you'll find all "
+                                       'the latest videos, news and content '
+                                       'from Nintendo including Nintendo '
+                                       'Switch, Wii U and Nintendo 3DS family '
+                                       'of systems.\n'
+                                       '\n'
+                                       'For customer support, please visit '
+                                       'http://support.nintendo.com.',
+                        'localized': {'description': 'Welcome to the official '
+                                                     'Nintendo YouTube channel '
+                                                     "where you'll find all "
+                                                     'the latest videos, news '
+                                                     'and content from '
+                                                     'Nintendo including '
+                                                     'Nintendo Switch, Wii U '
+                                                     'and Nintendo 3DS family '
+                                                     'of systems.\n'
+                                                     '\n'
+                                                     'For customer support, '
+                                                     'please visit '
+                                                     'http://support.nintendo.com.',
+                                      'title': 'Nintendo'},
+                        'publishedAt': '2005-12-27T13:18:56Z',
+                        'thumbnails': {'default': {'height': 88,
+                                                   'url': 'https://yt3.ggpht.com/a/AATXAJzNin68CJKyj5rXYJU1hRQRmHwVCNzF5bk0HN2k1g=s88-c-k-c0xffffffff-no-rj-mo',
+                                                   'width': 88},
+                                       'high': {'height': 800,
+                                                'url': 'https://yt3.ggpht.com/a/AATXAJzNin68CJKyj5rXYJU1hRQRmHwVCNzF5bk0HN2k1g=s800-c-k-c0xffffffff-no-rj-mo',
+                                                'width': 800},
+                                       'medium': {'height': 240,
+                                                  'url': 'https://yt3.ggpht.com/a/AATXAJzNin68CJKyj5rXYJU1hRQRmHwVCNzF5bk0HN2k1g=s240-c-k-c0xffffffff-no-rj-mo',
+                                                  'width': 240}},
+                        'title': 'Nintendo'},
+            'statistics': {'commentCount': '0',
+                           'hiddenSubscriberCount': False,
+                           'subscriberCount': '7130000',
+                           'videoCount': '4364',
+                           'viewCount': '2366015565'}}],
+ 'kind': 'youtube#channelListResponse',
+ 'pageInfo': {'resultsPerPage': 1}}

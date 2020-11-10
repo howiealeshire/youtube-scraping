@@ -1,13 +1,16 @@
 import datetime
+import json
 import random
 from pprint import pprint
 from time import sleep
 
 from celery import Celery
 
-from helper_functions import init_db_connection, write_dict_to_db, convert_list_to_list_of_dicts, write_dictlist_to_db
+from helper_functions import init_db_connection, write_dict_to_db, convert_list_to_list_of_dicts, write_dictlist_to_db, \
+    grouper
 from instagram_dataflows import get_n_sets_of_profiles
-from youtube_data_flows import get_most_popular_vids, get_most_popular_channels
+from youtube_data_flows import get_most_popular_vids, get_most_popular_channels, get_channels_from_channel_ids, \
+    get_channel_from_channel_id
 
 app: Celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 
@@ -179,13 +182,31 @@ def run_get_most_popular_vids_youtube_api():
 @app.task
 def run_get_most_popular_channels_youtube_api():
     list_vals = []
-    for i in range(1, 26):
+    for i in range(1, 200):
         rand_val = random.randint(7, 12)
         sleep(rand_val)
         response = get_most_popular_channels_youtube_api()
         list_vals.append(response)
     return list_vals
 
+@app.task
+def get_channels_from_id_youtube_api(group):
+    global db_conn
+    x = get_channel_from_channel_id(group)
+    if x:
+        write_dictlist_to_db(db_conn, x, pg_table='channels')
+    return x
+
+@app.task
+def run_get_channels_from_id_youtube_api():
+    list_vals = []
+    channel_ids = json.load(open(r'C:\Users\howie\PycharmProjects\pythonProject\channel_id_list.json'))
+    for group in grouper(channel_ids,30,''):
+        rand_val = random.randint(7, 12)
+        sleep(rand_val)
+        response = get_channels_from_id_youtube_api(group)
+        list_vals.append(response)
+    return list_vals
 
 @app.task
 def run_get_search_from_insta_api():
@@ -194,9 +215,16 @@ def run_get_search_from_insta_api():
         rand_val = random.randint(7, 12)
         sleep(rand_val)
         response = get_search_from_insta_api()
-        pprint(response)
+        #pprint(response)
         list_vals.append(response)
     return list_vals
+
+
+
+
+
+
+
 
 # if __name__ == '__main__':
 #    app.worker_main()

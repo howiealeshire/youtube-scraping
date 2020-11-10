@@ -369,6 +369,7 @@ def print_trace(result):
 if __name__ == "__main__":
     #main2()
 
-    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test11062020_2.csv','test11062020_2.csv')
+    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test_11_09_2020.csv',
+          'test_11_09_2020.csv')
 
 

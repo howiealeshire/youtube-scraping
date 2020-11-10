@@ -276,5 +276,12 @@ def main_test():
     write_csvs_to_db(r'C:\Users\howie\PycharmProjects\pythonProject\test_folder', conn)
 
 
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(*args, fillvalue=fillvalue)
+
 if __name__ == '__main__':
-    main_test()
+    x = grouper([1,2,3,4,5,6,7,8,9,10],4,'')
+    pprint(list(x))
