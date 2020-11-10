@@ -20,7 +20,7 @@ from export import main_azure, run_exports_temp
 
 scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 from helper_functions import append_dictlist_to_csv, write_dict_to_db, update_export_status, addResponseToDB, \
-    load_db_table_unexported, init_db_connection, write_dictlist_to_csv
+    load_db_table_unexported, init_db_connection, write_dictlist_to_csv, get_unused_api_key
 
 
 def flattenAndParseChannelResponse(response):
@@ -122,11 +122,12 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=
     return request_array, response_array
 
 
+
 def initializeYoutubeClient():
     # Disable OAuthlib's HTTPS verification when running locally.
     # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    api_key = 'AIzaSyA5jSfrY1m1iCEbPR3zW1U3Eo_dg0ecf08' #"AIzaSyBohPB-s5xjrjtjhB1iuIBfQpiFZxc4d2o"  # "AIzaSyA5jSfrY1m1iCEbPR3zW1U3Eo_dg0ecf08"  # "AIzaSyBohPB-s5xjrjtjhB1iuIBfQpiFZxc4d2o" #"AIzaSyA5jSfrY1m1iCEbPR3zW1U3Eo_dg0ecf08" # "AIzaSyBohPB-s5xjrjtjhB1iuIBfQpiFZxc4d2o" #"AIzaSyDLT1w9RuCvXpeY3i6CRiM7gPD4Vf_0VEI" # AIzaSyAxJwOIw91bTDYHXaIcLbZzT8rqVLovt-k AIzaSyDLT1w9RuCvXpeY3i6CRiM7gPD4Vf_0VEI
+    api_key = get_unused_api_key('youtube_api_keys_unused.txt','youtube_api_keys_used.txt')
     api_service_name = "youtube"
     api_version = "v3"
     client_secrets_file = "client_secret_1080473066558-rh5ihim77tc3qbpvparpjnts926tuk3t.apps.googleusercontent.com.json"
@@ -135,7 +136,7 @@ def initializeYoutubeClient():
     return youtube
 
 
-def dispatch_response(kind,response):
+def dispatch_response(kind, response):
     parsed_response = []
     if response is not None:
         if kind == "youtube#searchListResponse":
@@ -156,15 +157,10 @@ def dispatch_response(kind,response):
     return parsed_response
 
 
-
 def flattenAndParseResponses(response, video=False):
-
-
     kind = response.get('kind')
 
-
-
-    parsed_response = dispatch_response(kind,response)
+    parsed_response = dispatch_response(kind, response)
 
     return parsed_response
 
@@ -507,7 +503,6 @@ def main_postgres_clean_vids_workflow():
 
         parsed_flattened_arr = list(itertools.chain.from_iterable(parsed_flattened_arr))
 
-
         for response in parsed_flattened_arr:
             addResponseToDB(connection, response)
 
@@ -526,8 +521,6 @@ def main_postgres_clean_vids_workflow():
         print("PostgreSQL connection is closed")
 
 
-
-
 def get_all_items_from_response(response_array) -> List[Any]:
     """@safe | json written to <function_name>.json. It is the result of calling this function after
     makeSearchRequestsForNRecordsClean with sample response listed at that function.
@@ -540,7 +533,8 @@ def get_all_items_from_response(response_array) -> List[Any]:
     merged = list(itertools.chain.from_iterable(merged))
     return merged
 
-def flatten_and_parse_all_responses(response_array,video=True):
+
+def flatten_and_parse_all_responses(response_array, video=True):
     """@safe | json written to <function_name>.json. It is the result of calling this function after
        get_all_items_from_response with sample response listed at that function.
         """
@@ -550,7 +544,8 @@ def flatten_and_parse_all_responses(response_array,video=True):
         parsed_flattened_arr.append(parsed_response2)
     return parsed_flattened_arr
 
-def flatten_and_parse_all_responses_channels_test(youtube,response_array,video=False):
+
+def flatten_and_parse_all_responses_channels_test(youtube, response_array, video=False):
     """@safe | json written to <function_name>.json. It is the result of calling this function after
        get_all_items_from_response with sample response listed at that function.
         """
@@ -580,19 +575,20 @@ def get_vids_and_only_write_to_db():
                                       regionCode="US")
     search_params = dict(maxResults=5, order='viewCount', part='snippet', type='channel',
                          pageToken="CDIQAA")
-    #request_array1, response_array1 = get_most_popular_in_all_categories(youtube, 8, 50, True)  #
+    # request_array1, response_array1 = get_most_popular_in_all_categories(youtube, 8, 50, True)  #
     request_array2, response_array2 = makeSearchRequestsForNRecordsClean(youtube, 2, search_params_most_popular, True)
-    #response_array3 = response_array1 + response_array2
+    # response_array3 = response_array1 + response_array2
     parsed_flattened_arr = []
     merged = get_all_items_from_response(response_array2)
     parsed_flattened_arr = []
     parsed_flattened_arr = flatten_and_parse_all_responses(merged)
     return parsed_flattened_arr
 
+
 def get_channels_and_only_write_to_db():
     youtube = initializeYoutubeClient()
     connection = init_db_connection()
-    #search_params_most_popular = dict(maxResults=5, part='snippet,contentDetails,statistics',
+    # search_params_most_popular = dict(maxResults=5, part='snippet,contentDetails,statistics',
     #                                  chart="mostPopular", pageToken="CDIQAA",
     #                                  regionCode="US")
     search_params = dict(maxResults=25, order='viewCount', part='snippet', type='channel',
@@ -603,7 +599,7 @@ def get_channels_and_only_write_to_db():
     parsed_flattened_arr = []
     merged = get_all_items_from_response(response_array2)
     parsed_flattened_arr = []
-    parsed_flattened_arr = flatten_and_parse_all_responses_channels_test(youtube,merged,False)
+    parsed_flattened_arr = flatten_and_parse_all_responses_channels_test(youtube, merged, False)
     return parsed_flattened_arr
 
 
@@ -645,27 +641,25 @@ def get_category_ids_from_file(filepath='youtube_category_ids.txt'):
     return mylist
 
 
-
-
 def main_test_today():
     conn = init_db_connection()
-    channels = load_db_table_unexported(conn,'channels')
-    vids = load_db_table_unexported(conn,'videos')
-    write_dictlist_to_csv(channels,r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\analysis_youtube_2020-11-09.csv')
-    write_dictlist_to_csv(vids,r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\top_youtube_2020-11-09.csv')
+    channels = load_db_table_unexported(conn, 'channels')
+    vids = load_db_table_unexported(conn, 'videos')
+    write_dictlist_to_csv(channels,
+                          r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\analysis_youtube_2020-11-09.csv')
+    write_dictlist_to_csv(vids,
+                          r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\top_youtube_2020-11-09.csv')
     print(len(channels))
     print(len(vids))
 
     if conn:
         conn.close()
 
-    pass
-
 if __name__ == "__main__":
-    #print(len(unexported_channels))
-    #main_test_today()
+    # print(len(unexported_channels))
+    # main_test_today()
     # main_postgres_clean_channels_workflow()
     # main_test()
-    run_exports_temp('export_today7')
-    #run_exports_temp('data')
+    run_exports_temp('data3')
+    # run_exports_temp('data')
     # main_azure()

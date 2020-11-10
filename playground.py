@@ -3,7 +3,6 @@ import json
 from helper_functions import *
 from enum import Enum
 
-from instagram_main import build_follower_count_dict, write_follower_counts_to_files
 from youtube_data_flows import get_channels_from_channel_ids
 
 
@@ -43,6 +42,15 @@ def main_test():
     pprint(country_codes)
 
 
+def get_videos_and_channels_for_daily_export():
+    conn = init_db_connection()
+    vid_table = load_db_table_unexported(conn, 'videos')
+    print(len(vid_table))
+    channel_table = load_db_table_unexported(conn, 'channels')
+    print(len(channel_table))
+    write_dictlist_to_csv(channel_table, r'C:\Users\howie\PycharmProjects\pythonProject\data3\analysis_youtube_11_10_2020.csv')
+    write_dictlist_to_csv(vid_table, r'C:\Users\howie\PycharmProjects\pythonProject\data3\top_youtube_11_10_2020.csv')
+
 def main_test2():
     conn = init_db_connection()
     table = load_db_table(conn, 'videos')
@@ -51,9 +59,13 @@ def main_test2():
     if conn:
         conn.close()
 
+def main_test4():
+    pass
 
-def main_test3():
-    #build_follower_count_dict('','follower_counts.json',r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test_11_09_2020.csv')
-    write_follower_counts_to_files('add_already_existing_follower_counts5','add_already_existing_follower_counts7')
+
+
 if __name__ == "__main__":
-    main_test3()
+    #print(len(read_csv_into_dictlist(r'C:\Users\howie\PycharmProjects\pythonProject\data3\analysis_youtube_11_10_2020.csv')))
+
+    get_videos_and_channels_for_daily_export()
+    #main_test4()

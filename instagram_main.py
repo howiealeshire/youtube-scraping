@@ -490,61 +490,6 @@ def get_follower_counts_for_user(file_name):
 
 
 
-def build_follower_count_dict(dir_path,output_filename='follower_counts.json', input_file_path=''):
-    def get_id_follower_pairs(csv_dict_list):
-        id_bio_pairs_dict = {}
-        for row in csv_dict_list:
-            user_id = row.get('user_id')
-            bio = row.get('followerCount')
-            if bio is None:
-                bio = row.get('num_followers')
-            if user_id not in id_bio_pairs_dict.keys() and bio is not None:
-                id_bio_pairs_dict[user_id] = bio
-        return id_bio_pairs_dict
-
-    mypath = dir_path
-    if input_file_path != '':
-        onlyfiles = [input_file_path]
-    else:
-        onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
-    csv_dict_list_list = []
-    for elem in onlyfiles:
-        if input_file_path == '':
-            read_path = join(mypath, elem)
-        else:
-            read_path = input_file_path
-        csv_dict_list = read_in_csv(read_path)
-        pairs = get_id_follower_pairs(csv_dict_list)
-        csv_dict_list_list.append(pairs)
-    finalMap = {}
-    for d in csv_dict_list_list:
-        finalMap.update(d)
-    json.dump(finalMap, open(output_filename,'w'))
-    pprint(finalMap)
-    return finalMap
-
-def write_follower_counts_to_files(dir_path_input,dir_path_output):
-    mypath = dir_path_input
-    onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
-    pprint(onlyfiles)
-    user_id_follower_count_dict = json.load(open('C:/Users/howie/PycharmProjects/pythonProject/follower_counts.json','r'))
-    for elem in onlyfiles:
-        read_path = join(dir_path_input,elem)
-        csv_dict_list = read_in_csv(read_path)
-        for item in csv_dict_list:
-            user_id = item.get('user_id')
-            retrieved_count = user_id_follower_count_dict.get(user_id)
-            if retrieved_count is not None:
-                item['followerCount'] = retrieved_count
-        print("writing to file")
-        write_dictlist_to_csv(csv_dict_list,
-                               join(dir_path_output, elem))
-        print("done")
-        print("Edited dict:")
-        #pprint(csv_dict_list)
-
-    csv_dict_list_list = []
-
 
 
 def get_analysis_insta_file_locations():
@@ -634,7 +579,7 @@ if __name__ == "__main__":
     #pprint(get_analysis_insta_file_locations())
     #get_follower_counts_for_user('analysis_instagram_2020-10-27.csv')
     #get_follower_counts_for_user('analysis_instagram_2020-10-28.csv')
-    build_follower_count_dict()
+
 
     #test_dict = read_in_csv(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts2\analysis_instagram_2020-10-12.csv')
     #pprint(test_dict)

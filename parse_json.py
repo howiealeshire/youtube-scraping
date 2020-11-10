@@ -27,6 +27,7 @@ from better_profanity import profanity
 
 from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, write_dict_to_db
 from instagram_dataflows import request_users_from_keyword_search, get_users_from_json, get_filtered_words
+from instagram_main import read_in_csv
 
 
 def parse(json_obj):
@@ -198,30 +199,90 @@ def readDictListsAndExportToDB(dict_list_list, connection, cursor):
     pass
 
 
+
+def build_follower_count_dict(dir_path,output_filename='follower_counts.json', input_file_path=''):
+    def get_id_follower_pairs(csv_dict_list):
+        id_bio_pairs_dict = {}
+        for row in csv_dict_list:
+            user_id = row.get('user_id')
+            bio = row.get('followerCount')
+            if bio is None:
+                bio = row.get('num_followers')
+            if user_id not in id_bio_pairs_dict.keys() and bio is not None:
+                id_bio_pairs_dict[user_id] = bio
+        return id_bio_pairs_dict
+
+    mypath = dir_path
+    if input_file_path != '':
+        onlyfiles = [input_file_path]
+    else:
+        onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+    csv_dict_list_list = []
+    for elem in onlyfiles:
+        if input_file_path == '':
+            read_path = join(mypath, elem)
+        else:
+            read_path = input_file_path
+        csv_dict_list = read_in_csv(read_path)
+        pairs = get_id_follower_pairs(csv_dict_list)
+        csv_dict_list_list.append(pairs)
+    finalMap = {}
+    for d in csv_dict_list_list:
+        finalMap.update(d)
+    json.dump(finalMap, open(output_filename,'w'))
+    pprint(finalMap)
+
+def build_follower_count_dict_and_return(csv_dict_list):
+    def get_id_follower_pairs(csv_dict_list):
+        id_bio_pairs_dict = {}
+        for row in csv_dict_list:
+            user_id = row.get('user_id')
+            bio = row.get('followerCount')
+            if bio is None:
+                bio = row.get('num_followers')
+            if user_id not in id_bio_pairs_dict.keys() and bio is not None:
+                id_bio_pairs_dict[user_id] = bio
+        return id_bio_pairs_dict
+    pairs = get_id_follower_pairs(csv_dict_list)
+
+    for elem in csv_dict_list:
+        elem['followerCount'] = pairs[elem['user_id']]
+
+    return csv_dict_list
+
+
+def remove_rows_containing_zero_in_important_columns(csv_dict_list):
+    csv_dict_list2 = []
+    for elem in csv_dict_list:
+        follower_count = elem['followerCount']
+        total_like_count = elem['total_like_count']
+        if not follower_count:
+            follower_count = '0'
+        if not total_like_count:
+            total_like_count = '0'
+
+        if int(follower_count) < 30:
+            continue
+        if int(total_like_count) < 30:
+            continue
+        else:
+            csv_dict_list2.append(elem)
+    return csv_dict_list2
+
+
+
 def main2(path, filename):
-    # connection = psycopg2.connect(user="postgres",
-    #                              password="test",
-    #                              host="127.0.0.1",
-    #                              port="5432",
-    #                              database="postgres")
-    # cursor = connection.cursor()
-    # ddDictListToDB(cursor)
     test_file_path = path
-    # test_file_path = "C:/Users/howie/PycharmProjects/pythonProject/instascraper/test13.csv"
     csv_dict_list = read_csv_into_dictlist(test_file_path)
-    pprint(len(csv_dict_list))
-    #could make add_bio_to_each and make_websites_non_empty into single function
-    # : make_rows_into_canon_form
     csv_dict_list = add_bio_to_each(csv_dict_list)
     csv_dict_list = make_websites_non_empty(csv_dict_list)
     csv_dict_list = add_total_likes_to_csv_dict_list(csv_dict_list)
+    csv_dict_list = build_follower_count_dict_and_return(csv_dict_list)
+    csv_dict_list = remove_rows_containing_zero_in_important_columns(csv_dict_list)
     top_users = make_top_users_list(csv_dict_list)
     top_posts = make_top10_posts_list(csv_dict_list)
-
-    write_dictlist_to_csv(top_users, "add_already_existing_follower_counts2/analysis_" + filename)
-    write_dictlist_to_csv(top_posts, "add_already_existing_follower_counts2/top_" + filename)
-    # pprint(csv_dict_list)
-
+    write_dictlist_to_csv(top_users, "data3/analysis_" + filename)
+    write_dictlist_to_csv(top_posts, "data3/top_" + filename)
 
 def read_top_users_list(file_path):
     with open(file_path) as f:
@@ -298,25 +359,15 @@ def automate():
                    , cwd="C:\\Users\\howie\\PycharmProjects\\pythonProject\\instascraper", shell=True)
 
 
-def write_follower_counts_to_files(filepath, og_csv_dict_list):
-    mypath = 'C:/Users/howie/PycharmProjects/pythonProject/add_already_existing_follower_counts2'
-
+def add_follower_counts_to_dict_list(og_csv_dict_list, follower_count_file_path='follower_counts.json'):
     user_id_follower_count_dict = json.load(
-        open('C:/Users/howie/PycharmProjects/pythonProject/follower_counts.json', 'r'))
-    # read_path = join('C:/Users/howie/PycharmProjects/pythonProject/export_today',elem)
-    # csv_dict_list = read_in_csv(read_path)
+        open(follower_count_file_path, 'r'))
+
     for item in og_csv_dict_list:
         user_id = item.get('user_id')
         retrieved_count = user_id_follower_count_dict.get(user_id)
         if retrieved_count is not None:
             item['followerCount'] = retrieved_count
-    print("writing to file")
-    # append_dictlist_to_csv(og_csv_dict_list,
-    #                       join(mypath, elem))
-
-    print("done")
-    print("Edited dict:")
-    # pprint(csv_dict_list)
 
     return og_csv_dict_list
 
@@ -357,19 +408,11 @@ def get_n_users_flow():
 
 
 
-def print_trace(result):
-    if hasattr(result,'_trace'):
-        if result.trace is not None:
-            for trace_line in result.trace:
-                print(f"{trace_line.filename}:{trace_line.lineno} in `{trace_line.function}`")
-
-
-
 
 if __name__ == "__main__":
     #main2()
 
-    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test_11_09_2020.csv',
-          'test_11_09_2020.csv')
+    main2(r'C:\Users\howie\PycharmProjects\pythonProject\add_already_existing_follower_counts5\test_11_10_2020.csv',
+          'test_11_10_2020.csv')
 
 

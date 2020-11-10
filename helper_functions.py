@@ -35,6 +35,52 @@ def load_db_table_unexported(conn, table_name) -> List[Dict]:
     return ans1
 
 
+def get_yt_api_keys_from_file(file_path: str) -> List[str]:
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.readlines()
+
+def append_yt_api_key(api_key: str, file_path: str):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(api_key)
+
+def write_yt_api_keys(api_keys: List[str], file_path: str):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.writelines(api_keys)
+
+def get_unused_api_key(unused_keys_path: str, used_file_path: str) -> str:
+    unused_keys = get_yt_api_keys_from_file(unused_keys_path)
+    if unused_keys:
+        unused_key = unused_keys[0]
+        append_yt_api_key(unused_key,used_file_path)
+        return unused_key
+    else:
+        reset_api_keys_used(unused_keys_path,used_file_path)
+        return get_unused_api_key(unused_keys_path,used_file_path)
+
+
+def reset_api_keys_used(unused_file_path: str, used_file_path: str):
+    used_keys = get_yt_api_keys_from_file(used_file_path)
+    write_yt_api_keys(used_keys,unused_file_path)
+    open(used_file_path, 'w').close()
+
+
+def get_used_words(used_words_path: str):
+    with open(used_words_path, 'r', encoding='utf-8') as f:
+        return f.readlines()
+
+def get_unused_words(unused_words_path: str):
+    with open(unused_words_path, 'r', encoding='utf-8') as f:
+        return f.readlines()
+
+def get_unused_word(unused_words_path: str):
+    unused_words = get_unused_words(unused_words_path)
+    return unused_words[0]
+
+def append_used_word_to_file(used_word, used_word_file):
+    append_yt_api_key(used_word,used_word_file)
+
+
+
 def check_if_in_db(conn, table_name, column, value) -> bool:
     unexported_rows = load_db_table_unexported(conn, table_name)
     db_values = [d[column] for d in unexported_rows]
@@ -151,7 +197,7 @@ def addResponseToDB(connection, response, pg_table=''):
         write_dict_to_db(connection, response, pg_table)
 
 
-def update_export_status(connection, responses, value='TRUE', pg_table=''):
+def update_export_status(connection, responses, value=True, pg_table=''):
     cursor = connection.cursor()
     # exported_already, date_of_export
     for response in responses:
@@ -283,5 +329,8 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 if __name__ == '__main__':
-    x = grouper([1,2,3,4,5,6,7,8,9,10],4,'')
-    pprint(list(x))
+    conn = init_db_connection()
+    channels = read_csv_into_dictlist(r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\analysis_youtube_2020-11-09.csv')
+    vids = read_csv_into_dictlist(r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\top_youtube_2020-11-09.csv')
+    update_export_status(conn,vids)
+    #update_export_status(conn,responses)

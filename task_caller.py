@@ -5,5 +5,4 @@ from tasks import run_get_search_from_insta_api, run_get_most_popular_vids_youtu
 
 if __name__ == "__main__":
     group(run_get_most_popular_vids_youtube_api.delay(),
-          run_get_channels_from_id_youtube_api.delay(),
-          run_get_search_from_insta_api.delay())
+          run_get_channels_from_id_youtube_api.delay())
