@@ -1,3 +1,4 @@
+import codecs
 import copy
 import csv
 import itertools
@@ -9,16 +10,127 @@ from os.path import basename, isfile, join
 from pprint import pprint
 from typing import Dict, List, Any
 
+import googleapiclient
 import psycopg2
 import psycopg2.extras
+from instagram_private_api import Client, ClientCookieExpiredError, ClientLoginRequiredError, ClientLoginError, \
+    ClientError
 from pypika import Table, Query, PostgreSQLQuery
 import os
 
 from hypothesis import given
 from hypothesis.strategies import text
 
-from yt_main import init_yt_client
 
+def to_json(python_object):
+    if isinstance(python_object, bytes):
+        return {'__class__': 'bytes',
+                '__value__': codecs.encode(python_object, 'base64').decode()}
+    raise TypeError(repr(python_object) + ' is not JSON serializable')
+
+
+def from_json(json_object):
+    if '__class__' in json_object and json_object['__class__'] == 'bytes':
+        return codecs.decode(json_object['__value__'].encode(), 'base64')
+    return json_object
+
+
+def onlogin_callback(api, new_settings_file):
+    cache_settings = api.settings
+    with open(new_settings_file, 'w') as outfile:
+        json.dump(cache_settings, outfile, default=to_json)
+        print('SAVED: {0!s}'.format(new_settings_file))
+
+
+
+def init_insta_api(proxy=""):
+    user_name = 'devdevdevdevdev123455667778989'
+    password = 'hGC%\$;Q$J^2q3!]'
+    device_id = None
+    api = None
+    try:
+
+        settings_file = "instagram_login_settings.json"
+        if not os.path.isfile(settings_file):
+            # settings file does not exist
+            print('Unable to find file: {0!s}'.format(settings_file))
+
+            # login new
+            if proxy != "":
+                api = Client(
+                    user_name, password,
+                    on_login=lambda x: onlogin_callback(x, settings_file),
+                    proxy=proxy)
+            else:
+                api = Client(
+                    user_name, password,
+                    on_login=lambda x: onlogin_callback(x, settings_file))
+        else:
+            with open(settings_file) as file_data:
+                cached_settings = json.load(file_data, object_hook=from_json)
+            print('Reusing settings: {0!s}'.format(settings_file))
+
+            device_id = cached_settings.get('device_id')
+            # reuse auth settings
+            if proxy != '':
+                api = Client(
+                    user_name, password,
+                    settings=cached_settings, proxy=proxy)
+            else:
+                api = Client(
+                    user_name, password,
+                    settings=cached_settings)
+
+
+    except (ClientCookieExpiredError, ClientLoginRequiredError) as e:
+        print('ClientCookieExpiredError/ClientLoginRequiredError: {0!s}'.format(e))
+
+        # Login expired
+        # Do relogin but use default ua, keys and such
+        if proxy != '':
+            api = Client(
+                user_name, password,
+                device_id=device_id,
+                on_login=lambda x: onlogin_callback(x, settings_file),
+                proxy=proxy)
+        else:
+            api = Client(
+                user_name, password,
+                device_id=device_id,
+                on_login=lambda x: onlogin_callback(x, settings_file))
+
+
+    except ClientLoginError as e:
+        print('ClientLoginError {0!s}'.format(e))
+        exit(9)
+    except ClientError as e:
+        print('ClientError {0!s} (Code: {1:d}, Response: {2!s})'.format(e.msg, e.code, e.error_response))
+        exit(9)
+    except Exception as e:
+        print('Unexpected Exception: {0!s}'.format(e))
+        exit(99)
+
+        # Show when login expires
+    cookie_expiry = api.cookie_jar.auth_expires
+    print('Cookie Expiry: {0!s}'.format(datetime.fromtimestamp(cookie_expiry).strftime('%Y-%m-%dT%H:%M:%SZ')))
+    results = api.user_feed('2054964158')
+    assert len(results.get('items', [])) > 0
+
+    print('All ok')
+    return api
+
+
+def init_yt_client():
+    # Disable OAuthlib's HTTPS verification when running locally.
+    # *DO NOT* leave this option enabled in production.
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    api_key = get_unused_yt_api_key('youtube_api_keys_unused.txt', 'youtube_api_keys_used.txt')
+    api_service_name = "youtube"
+    api_version = "v3"
+    client_secrets_file = "client_secret_1080473066558-rh5ihim77tc3qbpvparpjnts926tuk3t.apps.googleusercontent.com.json"
+
+    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=api_key)
+    return youtube
 
 def load_db_table_unexported(conn, table_name) -> List[Dict]:
     channels = Table(table_name)

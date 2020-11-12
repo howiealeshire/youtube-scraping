@@ -1,4 +1,4 @@
-import parse_json as pj
+import parse_scrapy_insta_csv as pj
 import yt_main as yt
 from export import run_exports_temp
 import runscraping as rs

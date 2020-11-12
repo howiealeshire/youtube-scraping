@@ -20,6 +20,8 @@ from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, wri
 from helper_functions import flatten_list
 
 
+
+
 def delayed(f):
     def new_f(*args, **kwargs):
         sleep(random.randint(7, 12))
@@ -71,6 +73,56 @@ def get_n_sets_of_profiles(n: int) -> List[str]:
     for word in chosen_words:
         user_profiles_list.append(_fetch_user_profiles(word))
     return flatten_list(user_profiles_list)
+
+
+def get_top_users_by_hashtag(api, hashtag):
+    filepath_to_write_to = "instagram_data/flattened_data.json"
+    results = api.tag_section(hashtag)
+
+    #flattened_json = flatten_json(results)
+    #write_json_to_file(filepath_to_write_to, flattened_json)
+
+
+def get_post_objects_from_section_data(results):
+    sections = results.get('sections')  # section is array
+    section_list = []
+    for section in sections:
+        section_list.append(section)
+    media_list = []
+    for section in section_list:
+        layout_content = section.get('layout_content')
+        medias = layout_content.get('medias')
+        if medias is not None:
+            for elem in medias:
+                media = elem.get('media')
+                media_list.append(media)
+
+    return media_list
+
+
+# post_json should be in the form of "media" key objects
+def turn_post_json_into_db_ready_object(post_json):
+    comment_count = post_json.get('comment_count')
+    like_count = post_json.get('like_count')
+    user = post_json.get('user')
+    user_id = user.get('id')
+    username = user.get('username')
+
+    code = post_json.get('code')
+    caption = post_json.get('caption')
+    if caption is not None:
+        caption_text = caption.get('text')
+    else:
+        caption_text = ""
+    post_dict = {
+        'comment_count': comment_count,
+        'like_count': like_count,
+        'user_id': user_id,
+        'username': username,
+        'code': code,
+        'caption': caption_text
+    }
+    return post_dict
 
 
 def main():
