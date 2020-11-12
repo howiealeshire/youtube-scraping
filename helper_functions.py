@@ -17,6 +17,8 @@ import os
 from hypothesis import given
 from hypothesis.strategies import text
 
+from yt_main import init_yt_client
+
 
 def load_db_table_unexported(conn, table_name) -> List[Dict]:
     channels = Table(table_name)
@@ -47,7 +49,7 @@ def write_yt_api_keys(api_keys: List[str], file_path: str):
     with open(file_path, 'w', encoding='utf-8') as f:
         f.writelines(api_keys)
 
-def get_unused_api_key(unused_keys_path: str, used_file_path: str) -> str:
+def get_unused_yt_api_key(unused_keys_path: str, used_file_path: str) -> str:
     unused_keys = get_yt_api_keys_from_file(unused_keys_path)
     if unused_keys:
         unused_key = unused_keys[0]
@@ -55,13 +57,19 @@ def get_unused_api_key(unused_keys_path: str, used_file_path: str) -> str:
         return unused_key
     else:
         reset_api_keys_used(unused_keys_path,used_file_path)
-        return get_unused_api_key(unused_keys_path,used_file_path)
+        return get_unused_yt_api_key(unused_keys_path, used_file_path)
 
 
 def reset_api_keys_used(unused_file_path: str, used_file_path: str):
     used_keys = get_yt_api_keys_from_file(used_file_path)
     write_yt_api_keys(used_keys,unused_file_path)
     open(used_file_path, 'w').close()
+
+def file_len(fname):
+    with open(fname, encoding='utf-8') as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
 
 
 def get_used_words(used_words_path: str):
@@ -297,6 +305,27 @@ def write_csvs_to_db(csv_folder_path, conn, has_been_exported_already=True):
         write_csv_to_db(file, conn)
 
 
+def update_category_ids():
+    youtube = init_yt_client()
+    request = youtube.videoCategories().list(
+        part="snippet",
+        regionCode="US"
+    )
+    response = request.execute()
+    id_list = []
+    for item in response.get('items'):
+        id_list.append(item.get('id') + '\n')
+    with open('youtube_category_ids.txt', 'w', encoding='utf-8') as f:
+        f.writelines(id_list)
+
+
+def get_category_ids_from_file(filepath='youtube_category_ids.txt'):
+    with open(filepath) as f:
+        mylist = f.read().splitlines()
+    pprint(mylist)
+    return mylist
+
+
 def add_exported_already_field(dict: Dict, table_name: str) -> Dict:
     """@safe Copies dict, then returns copy of that dict with added key."""
     dict2 = copy.deepcopy(dict)
@@ -312,14 +341,50 @@ def add_date_exported_field(dict: Dict, table_name: str) -> Dict:
         dict2['date_of_export'] = datetime.today()
     return dict2
 
+def searched_user_is_in_users():
+    load_db_table_unexported()
 
 def main():
     pass
 
 
+def copy_db_to_another(conn, db_name1, db_name2):
+    db_table1 = load_db_table(conn, db_name1)
+    # for instagram_users
+    for elem in db_table1:
+        username = elem['user_id']
+        d = elem['username']
+        a = elem['num_followers']
+        w = elem['website']
+        dd = elem['bio']
+        ddd = elem['total_like_count']
+        eee = elem['has_been_exported']
+    write_dictlist_to_db(conn,db_table1,db_name2)
+
+def check_chcek(conn):
+    searched_users = load_db_table(conn, 'instagram_users_from_search')
+    users = load_db_table(conn,'instagram_user2')
+
+    pass
+
 def main_test():
     conn = init_db_connection()
-    write_csvs_to_db(r'C:\Users\howie\PycharmProjects\pythonProject\test_folder', conn)
+    remove_dupes_from_searched_users(conn)
+    if conn:
+        conn.close()
+
+
+def remove_dupes_from_searched_users(conn):
+    searched_users = load_db_table(conn, 'instagram_users_from_search')
+    users = load_db_table(conn,'instagram_users')
+    usernames = get_dict_list_vals_for_key(users,'user_id')
+    searched_usernames = get_dict_list_vals_for_key(searched_users,'username')
+    dict_list = []
+    for elem in searched_usernames:
+        if elem not in usernames:
+            print(elem)
+            dict_list.append({'username': elem})
+    write_dictlist_to_db(conn,dict_list,'instagram_users_searched')
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -329,8 +394,4 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 if __name__ == '__main__':
-    conn = init_db_connection()
-    channels = read_csv_into_dictlist(r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\analysis_youtube_2020-11-09.csv')
-    vids = read_csv_into_dictlist(r'C:\Users\howie\PycharmProjects\pythonProject\export_today7\top_youtube_2020-11-09.csv')
-    update_export_status(conn,vids)
-    #update_export_status(conn,responses)
+    main_test()

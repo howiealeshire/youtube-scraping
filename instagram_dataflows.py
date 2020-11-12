@@ -15,17 +15,20 @@ from attr import dataclass
 from better_profanity import profanity
 from cytoolz.functoolz import pipe
 from requests import Response
-from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, update_export_status, write_dict_to_db
+from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, \
+    update_export_status, write_dict_to_db
 from helper_functions import flatten_list
 
+
 def delayed(f):
-    def new_f(*args,**kwargs):
+    def new_f(*args, **kwargs):
         sleep(random.randint(7, 12))
         return f(*args, **kwargs)
+
     return new_f
 
 
-def get_users_from_json(search_result: Dict[str,Any]) -> List[str]:
+def get_users_from_json(search_result: Dict[str, Any]) -> List[str]:
     """@safe"""
     pre_parsed_users = search_result.get('users')
     if pre_parsed_users is not None:
@@ -37,7 +40,6 @@ def get_users_from_json(search_result: Dict[str,Any]) -> List[str]:
         return usernames
 
 
-
 def request_users_from_keyword_search(keyword) -> Response:
     """@impure_safe: Returns 100 results back."""
     return requests.get("https://www.instagram.com/web/search/topsearch/?context=blended&query=" + keyword)
@@ -45,19 +47,21 @@ def request_users_from_keyword_search(keyword) -> Response:
 
 def _fetch_user_profiles(keyword: str) -> List[str]:
     return pipe(
-         keyword,
-         request_users_from_keyword_search,
-         _get_json_from_response,
-         get_users_from_json)
+        keyword,
+        request_users_from_keyword_search,
+        _get_json_from_response,
+        get_users_from_json)
 
 
 def _get_json_from_response(response: requests.Response) -> Dict[str, str]:
     """@safe"""
     return response.json()
 
+
 def get_filtered_words():
     with open('clean_words.txt') as f:
         return f.readlines()
+
 
 def get_n_sets_of_profiles(n: int) -> List[str]:
     """The number of profiles returned is 100 times n."""
@@ -69,9 +73,9 @@ def get_n_sets_of_profiles(n: int) -> List[str]:
     return flatten_list(user_profiles_list)
 
 
-
 def main():
     pass
+
 
 if __name__ == '__main__':
     pprint(get_n_sets_of_profiles(2))

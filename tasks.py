@@ -5,6 +5,10 @@ from pprint import pprint
 from time import sleep
 
 from celery import Celery
+from celery.schedules import crontab
+from celery.utils.log import get_task_logger
+logger = get_task_logger(__name__)
+import runscraping as rs
 
 from helper_functions import init_db_connection, write_dict_to_db, convert_list_to_list_of_dicts, write_dictlist_to_db, \
     grouper
@@ -17,6 +21,10 @@ app: Celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 from celery.signals import worker_process_init, worker_process_shutdown
 
 db_conn = None
+
+
+app.conf.timezone = 'US/Eastern'
+
 
 
 @worker_process_init.connect
@@ -32,6 +40,20 @@ def shutdown_worker(**kwargs):
     if db_conn:
         print('Closing database connection for worker.')
         db_conn.close()
+
+
+@app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    # Calls test('hello') every 10 seconds.
+    # Executes every Monday morning at 7:30 a.m.
+    sender.add_periodic_task(
+        crontab(hour=13, minute=21),
+        test.s('Happy Mondays!'),
+    )
+
+@app.task
+def test(arg):
+    logger.info(f'Arg: {arg}')
 
 
 @app.task
@@ -220,6 +242,14 @@ def run_get_search_from_insta_api():
     return list_vals
 
 
+@app.task
+def scrape():
+    rs.main()
+
+@app.task
+def run_scrape():
+
+    pass
 
 
 
