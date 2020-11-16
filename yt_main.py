@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from dataclasses import asdict
+
 from helper_functions import get_unused_yt_api_key
 import csv
 import json
@@ -7,7 +9,7 @@ from os import listdir
 from os.path import isfile, join
 from pprint import pprint
 import os, uuid
-from typing import List, Any
+from typing import List, Any, Dict
 
 import psycopg2
 import psycopg2.extras
@@ -22,7 +24,8 @@ from table_data import *
 scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 from helper_functions import init_yt_client
 
-def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=False):
+
+def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=False, channel=False):
     """sample response with the following params stored in
      Search params used: search_params_most_popular = dict(maxResults=5, part='snippet,contentDetails,statistics',
                                        chart="mostPopular", pageToken="CDIQAA",
@@ -36,10 +39,12 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=
     page_token_array = []
 
     def create_request(**kwargs):
-        if not video:
-            return youtube.search().list(**kwargs)
-        else:
+        if channel:
+            return youtube.channels().list(**kwargs)
+        elif video:
             return youtube.videos().list(**kwargs)
+        else:
+            return youtube.search().list(**kwargs)
 
     try:
         while num_pages >= 1 and next_page_token:
@@ -60,9 +65,7 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=
     return request_array, response_array
 
 
-
-
-def flattenAndParseChannelResponse(response) -> YTChannel:
+def flattenAndParseChannelResponse(response) -> Dict:
     channel_id = response.get('id')
     snippet = response.get('snippet')
     stats = response.get('statistics')
@@ -70,29 +73,33 @@ def flattenAndParseChannelResponse(response) -> YTChannel:
     title = snippet.get('title')
     sub_count = stats.get('subscriberCount')
     video_count = stats.get('videoCount')
+    hidden_sub_count = stats.get('hiddenSubscriberCount')
     view_count = stats.get('viewCount')
 
-    return YTChannel(channel_id, title, sub_count, video_count, view_count, country)
+    #pprint(sub_count)
+    if hidden_sub_count:
+        sub_count = '0'
+    return asdict(YTChannel(channel_id=channel_id,
+                            title=title,
+                            sub_count=int(sub_count),
+                            video_count=int(video_count),
+                            view_count=int(view_count),
+                            country=country))
 
 
-def flattenAndParseSearchResponse(response):
+def flattenAndParseSearchResponse(response) -> Dict:
     pprint(response)
     channel_id = response.get('id').get('channelId')
     snippet = response.get('snippet')
     stats = response.get('statistics')
     country = snippet.get('country')
     title = snippet.get('title')
-    sub_count = stats.get('subscriberCount')
-    video_count = stats.get('videoCount')
-    view_count = stats.get('viewCount')
+
     engagement = 0
     channel_data = {
         'kind': response.get('kind'),
         'channel_id': channel_id,
         'title': title,
-        'sub_count': sub_count,
-        'video_count': video_count,
-        'view_count': view_count,
         'engagement': engagement,
         'country': country,
         'exported_already': False,
@@ -103,7 +110,7 @@ def flattenAndParseSearchResponse(response):
     return curr_dict
 
 
-def flattenAndParseVideoResponse(response) -> YTVideo:
+def flattenAndParseVideoResponse(response) -> Dict:
     vid_id = response.get('id')
     snippet = response.get('snippet')
     channel_id = snippet.get('channelId')
@@ -112,10 +119,15 @@ def flattenAndParseVideoResponse(response) -> YTVideo:
     channel_title = snippet.get('title')
     stats = response.get('statistics')
     viewCount = stats.get('viewCount')
-    return YTVideo(vid_id, channel_id, vid_title, vid_description, channel_title, viewCount)
+    return asdict(YTVideo(video_id=vid_id,
+                   channel_id=channel_id,
+                   video_title=vid_title,
+                   description=vid_description,
+                   channel_title=channel_title,
+                   view_count=int(viewCount)))
 
 
-def flattenAndParseVideoListResponse(response):
+def flattenAndParseVideoListResponse(response) -> List[Dict]:
     print("RESPONSE")
     pprint(response)
     print("RESPONSE ITEMS")
@@ -132,15 +144,16 @@ def flattenAndParseVideoListResponse(response):
     return flattened_video_list
 
 
-def flattenAndParseResponses(response, video=False):
+def flattenAndParseResponses(response) -> List[Dict]:
+    pprint(response)
     kind = response.get('kind')
 
-    def dispatch_response(kind, response):
+    def dispatch_response(kind, response) -> List[Dict]:
         parsed_response = []
 
         if response is not None:
             if kind == "youtube#searchListResponse":
-                parsed_response = flattenAndParseSearchResponse(response.get('items'))
+                parsed_response = flattenAndParseSearchResponse(response)
             elif kind == "youtube#channelListResponse":
                 parsed_response = flattenAndParseChannelResponse(response.get('items'))
             elif kind == "youtube#videoListResponse":
@@ -150,6 +163,7 @@ def flattenAndParseResponses(response, video=False):
             elif kind == "youtube#channel":
                 parsed_response = flattenAndParseChannelResponse(response)  # good
             elif kind == "youtube#searchResult":
+                pprint(response)
                 parsed_response = flattenAndParseSearchResponse(response)
             else:
                 print("No known kind: " + kind)

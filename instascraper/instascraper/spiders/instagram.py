@@ -36,11 +36,10 @@ class InstagramSpider(scrapy.Spider):
     # custom_settings = {'CONCURRENT_REQUESTS_PER_DOMAIN': 5}
 
     def start_requests(self):
-        path = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\remaining_args.json'
-        path2 = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape_today.json'
-        with open(path2) as f:
+        path = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape.json'
+        with open(path) as f:
             data = json.load(f)
-        user_accounts = data[700:1000]
+        user_accounts = data
 
 
         # user_accounts = get_array_and_delete_from_file(path)

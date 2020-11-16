@@ -1,23 +1,31 @@
 import itertools
 import random
+from dataclasses import asdict
 from pprint import pprint
-from typing import List, Any
+from typing import List, Any, Dict
 
-from helper_functions import init_db_connection
-from instagram_dataflows import get_filtered_words
+from helper_functions import init_db_connection, write_dictlist_to_db, flatten_list, get_dict_list_vals_for_key, \
+    write_dict_to_db, get_random_word, get_random_country_code
+from table_data import table_name_videos, table_name_channels, SearchWord, table_name_words_used, Region, \
+    table_name_country_codes
 from yt_main import init_yt_client, makeSearchRequestsForNRecordsClean, flattenAndParseChannelResponse, \
     flattenAndParseResponses
 
+num_pages_of_results = 8
+max_results_per_page = 50
 
-def flatten_and_parse_all_responses(response_array, video=True):
+
+def flatten_and_parse_all_responses(response_array) -> List[List[dict]]:
     """@safe | json written to <function_name>.json. It is the result of calling this function after
        get_all_items_from_response with sample response listed at that function.
         """
     parsed_flattened_arr = []
     for elem in response_array:
-        parsed_response2 = flattenAndParseResponses(elem, video)
+        parsed_response2 = flattenAndParseResponses(elem)
         parsed_flattened_arr.append(parsed_response2)
-    return parsed_flattened_arr
+
+    true_flattened = parsed_flattened_arr
+    return true_flattened
 
 
 def get_all_items_from_response(response_array) -> List[Any]:
@@ -33,28 +41,40 @@ def get_all_items_from_response(response_array) -> List[Any]:
     return merged
 
 
-def get_most_popular_vids(regionCode):
+def get_most_popular_vids(conn):
+    search_type = 'get_most_popular_vids'
+    platform = 'youtube'
+    regionCode = get_random_country_code(conn,search_type,platform)
+    used_regions = []
+    used_regions.append(asdict(Region(regionCode, search_type, platform, True)))
     youtube = init_yt_client()
-    search_params_most_popular = dict(maxResults=50, part='snippet,contentDetails,statistics',
+    search_params_most_popular = dict(maxResults=max_results_per_page, part='snippet,contentDetails,statistics',
                                       chart="mostPopular", pageToken="CDIQAA",
                                       regionCode=regionCode)
 
-    request_array2, response_array2 = makeSearchRequestsForNRecordsClean(youtube, 20, search_params_most_popular, True)
+    request_array2, response_array2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results, search_params_most_popular, True)
     merged = get_all_items_from_response(response_array2)
     parsed_flattened_arr = flatten_and_parse_all_responses(merged)
+    write_dictlist_to_db(conn,used_regions,table_name_country_codes)
     return parsed_flattened_arr
 
 
-def get_most_popular_channels():
+def get_most_popular_channels(conn):
+    search_type = 'get_most_popular_channels'
+    platform = 'youtube'
     youtube = init_yt_client()
-    filtered_words = get_filtered_words()
-    chosen_word = random.sample(filtered_words, 5)
-    search_params = dict(maxResults=50, order='viewCount', part='snippet', type='channel',
-                         pageToken="CDIQAA", q=chosen_word[0])
-    request_array2, response_array2 = makeSearchRequestsForNRecordsClean(youtube, 8, search_params, False)
+    chosen_word = get_random_word(conn,search_type,platform)
+    write_dict_to_db(conn,asdict(SearchWord(chosen_word,search_type,platform,True)),table_name_words_used)
+
+    search_params = dict(maxResults=max_results_per_page, order='viewCount', part='snippet', type='channel',
+                         pageToken="CDIQAA", q=chosen_word)
+    request_array2, response_array2 = makeSearchRequestsForNRecordsClean(youtube,num_pages_of_results, search_params, False, False)
     merged = get_all_items_from_response(response_array2)
-    parsed_flattened_arr = flatten_and_parse_all_responses_channels_test(youtube, merged, False)
-    return parsed_flattened_arr
+    parsed_flattened_arr = flatten_and_parse_all_responses(merged)
+
+    channel_ids = get_dict_list_vals_for_key(parsed_flattened_arr, 'channel_id')
+    channel_results = get_channel_from_channel_id(channel_ids)
+    return channel_results
 
 
 def flatten_and_parse_all_responses_channels_test(youtube, response_array, video=False):
@@ -70,32 +90,40 @@ def flatten_and_parse_all_responses_channels_test(youtube, response_array, video
             id=channel_id
         )
         response = request.execute()
-        pprint(response)
         item = response.get('items')
         if item:
             item = item[0]
-        parsed_response2 = flattenAndParseResponses(item, video)
+        parsed_response2 = flattenAndParseResponses(item)
         parsed_flattened_arr.append(parsed_response2)
     return parsed_flattened_arr
 
 
-
 def get_channel_from_channel_id(channel_ids_list: List[str]):
-    channel_id = ','.join(channel_ids_list)
     youtube = init_yt_client()
+    search_params = []
+    dict_list_list = []
+    for elem in channel_ids_list:
+        dict_list = get_channel_from_channel_id_true(elem)
+        dict_list_list.append(dict_list)
 
-    request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
-        id=channel_id
-    )
-    response = request.execute()
-    merged = get_all_items_from_response([response])
+    return flatten_list(dict_list_list)
+
+def get_channel_from_channel_id_true(channel_id: str):
+    youtube = init_yt_client()
+    search_params = dict(maxResults=max_results_per_page, part="snippet,contentDetails,statistics",
+                              pageToken="CDIQAA", id=channel_id)
+    request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results, search_params, False, True)
+    merged = get_all_items_from_response(response_array)
     dict_list = []
     for elem in merged:
+        #pprint(elem)
         channel_response = flattenAndParseChannelResponse(elem)
-        dict_list.append(channel_response)
+        if channel_response.get('sub_count') != 0:
+            dict_list.append(channel_response)
 
     return dict_list
+
+
 
 def get_channels_from_channel_ids(channel_ids_list: List[str]):
     channel_ids = ','.join(channel_ids_list)
@@ -104,14 +132,14 @@ def get_channels_from_channel_ids(channel_ids_list: List[str]):
         part="snippet,contentDetails,statistics",
         id=channel_ids
     )
+
     response = request.execute()
     merged = get_all_items_from_response(response)
     channel_response = flattenAndParseChannelResponse(merged)
     return channel_response
     #
     #
-    #return channel_response
-
+    # return channel_response
 
 
 def get_most_popular_in_all_categories(youtube, num_pages, num_items_per_page=30, video=False):
@@ -128,16 +156,27 @@ def get_most_popular_in_all_categories(youtube, num_pages, num_items_per_page=30
         request_array, response_array = makeSearchRequestsForNRecordsClean(youtube, num_pages,
                                                                            search_params_most_popular, True)
         print("Request array")
-        pprint(request_array)
+        #pprint(request_array)
         print("Response array")
-        pprint(response_array)
+        #pprint(response_array)
         request_response_array_pair_list.append((request_array, response_array))
     return request_response_array_pair_list
 
 
 def main():
-    x = get_channel_from_channel_id(['UC_x5XG1OV2P6uZZ5FSM9Ttw','UCDEW2psJxrMGqvjv-xTSspQ','','',''])
-    pprint(x)
+    conn = init_db_connection()
+    test = ['UCijjpfm0MvYAacCXopzBr5Q',
+            'UCZCD9loEW85QvsjwqC17SZQ',
+            'UC_pumopNzv0mMK5ggFfnmoQ',]
+    #a = get_channel_from_channel_id(test)
+    a = get_channel_from_channel_id(test)
+    #a = get_channel_from_channel_id(test)
+    #pprint(a)
+
+    write_dictlist_to_db(conn, a, table_name_channels)
+    # x = get_channel_from_channel_id(['UC_x5XG1OV2P6uZZ5FSM9Ttw','UCDEW2psJxrMGqvjv-xTSspQ','','',''])
+    # pprint(x)
+
 
 if __name__ == "__main__":
     main()

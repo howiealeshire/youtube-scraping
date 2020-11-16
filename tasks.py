@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 import random
 from pprint import pprint
 from time import sleep
@@ -7,12 +8,17 @@ from time import sleep
 from celery import Celery
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
+
+from table_data import table_name_insta_users, table_name_posts, table_name_searched_insta_users, table_name_videos, \
+    table_name_channels
+
 logger = get_task_logger(__name__)
 import runscraping as rs
 
 from helper_functions import init_db_connection, write_dict_to_db, convert_list_to_list_of_dicts, write_dictlist_to_db, \
-    grouper
-from instagram_dataflows import get_n_sets_of_profiles
+    grouper, load_db_table, get_dict_list_vals_for_key, load_unused_users, update_used_statuses, \
+    get_channel_ids_not_in_channels
+from instagram_dataflows import get_n_sets_of_profiles, run_scrapy
 from youtube_data_flows import get_most_popular_vids, get_most_popular_channels, get_channels_from_channel_ids, \
     get_channel_from_channel_id
 
@@ -22,9 +28,7 @@ from celery.signals import worker_process_init, worker_process_shutdown
 
 db_conn = None
 
-
 app.conf.timezone = 'US/Eastern'
-
 
 
 @worker_process_init.connect
@@ -51,6 +55,7 @@ def setup_periodic_tasks(sender, **kwargs):
         test.s('Happy Mondays!'),
     )
 
+
 @app.task
 def test(arg):
     logger.info(f'Arg: {arg}')
@@ -59,27 +64,25 @@ def test(arg):
 @app.task
 def get_search_from_insta_api():
     global db_conn
-    response = get_n_sets_of_profiles(1)
-    x = convert_list_to_list_of_dicts(response)
-    write_dictlist_to_db(db_conn, x, pg_table='instagram_users_from_search')
+    response = get_n_sets_of_profiles(db_conn,1)
     return response
 
 
 @app.task
 def get_most_popular_vids_youtube_api(regionCode):
     global db_conn
-    x = get_most_popular_vids(regionCode)
+    x = get_most_popular_vids(db_conn)
     if x:
-        write_dictlist_to_db(db_conn, x, pg_table='videos')
+        write_dictlist_to_db(db_conn, x, pg_table=table_name_videos)
     return x
 
 
 @app.task
 def get_most_popular_channels_youtube_api():
     global db_conn
-    x = get_most_popular_channels()
+    x = get_most_popular_channels(db_conn)
     if x:
-        write_dictlist_to_db(db_conn, x, pg_table='channels')
+        write_dictlist_to_db(db_conn, x, pg_table=table_name_channels)
     return x
 
 
@@ -201,6 +204,8 @@ def run_get_most_popular_vids_youtube_api():
     return list_vals
 
 
+
+
 @app.task
 def run_get_most_popular_channels_youtube_api():
     list_vals = []
@@ -211,49 +216,63 @@ def run_get_most_popular_channels_youtube_api():
         list_vals.append(response)
     return list_vals
 
+
 @app.task
 def get_channels_from_id_youtube_api(group):
     global db_conn
     x = get_channel_from_channel_id(group)
     if x:
-        write_dictlist_to_db(db_conn, x, pg_table='channels')
+        write_dictlist_to_db(db_conn, x, pg_table=table_name_channels)
     return x
+
 
 @app.task
 def run_get_channels_from_id_youtube_api():
+    global db_conn
     list_vals = []
-    channel_ids = json.load(open(r'C:\Users\howie\PycharmProjects\pythonProject\channel_id_list.json'))
-    for group in grouper(channel_ids,30,''):
+
+    channel_ids = get_channel_ids_not_in_channels(db_conn)
+    for group in grouper(channel_ids, 30, ''):
         rand_val = random.randint(7, 12)
         sleep(rand_val)
         response = get_channels_from_id_youtube_api(group)
         list_vals.append(response)
     return list_vals
 
+
 @app.task
 def run_get_search_from_insta_api():
     list_vals = []
-    for i in range(1, 200):
+    for i in range(1, 300):
         rand_val = random.randint(7, 12)
         sleep(rand_val)
         response = get_search_from_insta_api()
-        #pprint(response)
+        # pprint(response)
         list_vals.append(response)
     return list_vals
 
 
-@app.task
-def scrape():
-    rs.main()
+
 
 @app.task
 def run_scrape():
-
-    pass
-
-
-
-
+    global db_conn
+    searched_users = load_unused_users(db_conn, table_name_searched_insta_users)
+    searched_usernames = get_dict_list_vals_for_key(searched_users, 'username')
+    path = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape.json'
+    i = 0
+    for group in grouper(searched_usernames, 200, ''):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(list(group), f)
+        rand_val = random.randint(7, 12)
+        sleep(rand_val)
+        top_users, top_posts, filepath = run_scrapy(i)
+        i += 1
+        write_dictlist_to_db(db_conn, top_users, table_name_insta_users)
+        update_used_statuses(db_conn, top_users)
+        write_dictlist_to_db(db_conn, top_posts, table_name_posts)
+        update_used_statuses(db_conn, top_posts)
+        os.remove(filepath)
 
 
 # if __name__ == '__main__':
