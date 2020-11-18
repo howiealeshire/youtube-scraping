@@ -5,6 +5,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pprint import pprint
 import csv
+from statistics import mean
 from typing import Dict, Any, List
 
 from attr import dataclass
@@ -26,7 +27,8 @@ import urllib.request
 from better_profanity import profanity
 
 from helper_functions import read_csv_into_dictlist, append_dictlist_to_csv, write_dictlist_to_csv, init_db_connection, \
-    update_export_status, write_dict_to_db, write_dictlist_to_db, update_used_statuses
+    update_export_status, write_dict_to_db, write_dictlist_to_db, update_used_statuses, get_dict_list_vals_for_key, \
+    flatten_list
 from table_data import InstaUser, InstaPost, table_name_insta_users, table_name_posts
 
 
@@ -105,6 +107,20 @@ def make_websites_non_empty(csv_dict_list):
 
     return csv_dict_list
 
+def change_total_likes_to_predicted(csv_dict_list, total_likes_user_id_dict):
+    id_bio_dict = total_likes_user_id_dict
+    for row in csv_dict_list:
+        user_id = row.get('user_id')
+        if user_id is not None:
+            x = id_bio_dict[user_id]
+            if x:
+                row['total_like_count'] = x
+            else:
+                row['total_like_count'] = 0
+
+    return csv_dict_list
+
+
 
 def add_total_likes_to_csv_dict_list(csv_dict_list):
     def get_id_bio_pairs(csv_dict_list):
@@ -126,6 +142,7 @@ def add_total_likes_to_csv_dict_list(csv_dict_list):
         total_like_count = id_like_count_dict[user_id]
         row['total_like_count'] = total_like_count
     return csv_dict_list
+
 
 
 def build_follower_count_dict_and_return(csv_dict_list):
@@ -177,6 +194,64 @@ def remove_header_line_after_header(csv_dict_list):
         i += 1
     return csv_dict_list2
 
+
+def get_avg_like_count(list_of_likes, starting_index=3):
+    #pprint(list_of_likes)
+    this_mean = mean(list_of_likes)
+
+    return mean(list_of_likes)
+
+
+def calc_predicted_total_likes(total_num_posts, avg_like_count):
+    x = total_num_posts * avg_like_count
+    y = x * 10
+    z = y / 7
+    q = (z * 0.25) + (z * 0.05) + x
+    return q
+
+
+def get_predicted_total_likes_for_user(user_id,csv_dict_list):
+    list_of_likes = get_list_of_likes_for_user(user_id,csv_dict_list)
+    avg_like_count = get_avg_like_count(list_of_likes)
+    total_num_posts = get_total_num_posts_for_user(user_id,csv_dict_list)
+    #pprint(total_num_posts)
+    #pprint(avg_like_count)
+    return calc_predicted_total_likes(int(total_num_posts[0]),int(avg_like_count))
+
+
+
+def change_total_like_count_to_predicted2(csv_dict_list):
+    user_id_list = get_user_id_list(csv_dict_list)
+    user_id_predictions = {}
+    for user_id in user_id_list:
+        predicted_total_like_count = get_predicted_total_likes_for_user(user_id,csv_dict_list)
+        user_id_predictions[user_id] = predicted_total_like_count
+
+    return user_id_predictions
+
+
+def get_list_of_likes_for_user(user_id,csv_dict_list):
+    list_of_likes = []
+    for elem in csv_dict_list:
+        if elem['user_id'] == user_id:
+            list_of_likes.append(int(elem['likeCount']))
+    return list(set(list_of_likes))
+
+
+def get_total_num_posts_for_user(user_id,csv_dict_list):
+    list_of_likes = []
+    for elem in csv_dict_list:
+        #pprint(csv_dict_list)
+        if elem['user_id'] == user_id:
+            list_of_likes.append(elem['total_num_posts'])
+    return list_of_likes
+
+def get_user_id_list(csv_dict_list):
+    return get_dict_list_vals_for_key(csv_dict_list,'user_id')
+
+
+
+
 def main2(path):
     csv_dict_list = read_csv_into_dictlist(path)
     csv_dict_list = remove_header_line_after_header(csv_dict_list)
@@ -185,9 +260,10 @@ def main2(path):
     csv_dict_list = add_total_likes_to_csv_dict_list(csv_dict_list)
     csv_dict_list = build_follower_count_dict_and_return(csv_dict_list)
     csv_dict_list = remove_rows_containing_zero_in_important_columns(csv_dict_list)
+    things = change_total_like_count_to_predicted2(csv_dict_list)
+    csv_dict_list = change_total_likes_to_predicted(csv_dict_list,things)
     top_users = make_top_users_list(csv_dict_list)
     top_posts = make_top_posts_list(csv_dict_list)
-
     return top_users, top_posts
     # write_dictlist_to_csv(top_users, "data3/analysis_" + filename)
     # write_dictlist_to_csv(top_posts, "data3/top_" + filename)
@@ -201,5 +277,11 @@ def main():
 
 if __name__ == "__main__":
     db_conn = init_db_connection()
-    filepath = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\scrapy_exports\0.csv'
+    filepath = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\scrapy_exports_test\3.csv'
+    filepath2 = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\scrapy_exports_test\4.csv'
+    filepath_test = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\test4.csv'
+    filepath4 = r'C:\Users\howie\PycharmProjects\pythonProject\instascraper\scrapy_exports\2.csv'
+    top_users, top_posts = main2(filepath_test)
+    write_dictlist_to_csv(top_users,filepath)
+    write_dictlist_to_csv(top_posts,filepath2)
 

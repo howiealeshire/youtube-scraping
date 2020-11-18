@@ -48,7 +48,7 @@ class InstagramSpider(scrapy.Spider):
             yield scrapy.Request(url, callback=self.parse)
 
     def parse(self, response):
-
+        num_pages = 2
         x = response.xpath("/html/body/script[1]/text()").extract_first()
 
         # x2 = response.xpath("/html/body/script[12]/text()").extract_first()
@@ -70,8 +70,11 @@ class InstagramSpider(scrapy.Spider):
             data['entry_data']['ProfilePage'][0]['graphql']['user']['edge_owner_to_timeline_media']['page_info'][
                 'has_next_page']
         edges3 = data['entry_data']['ProfilePage'][0]['graphql']['user']['edge_owner_to_timeline_media']['edges']
+        total_num_posts = data['entry_data']['ProfilePage'][0]['graphql']['user']['edge_owner_to_timeline_media']['count']
+
         # edges2 = data2['entry_data']['ProfilePage'][0]['graphql']['user']['edge_owner_to_timeline_media']['edges']
         # edges = edges3 + edges2
+        # "edge_owner_to_timeline_media":{"count":23926,"page_info"
         edges = edges3
         for i in edges:
             url = 'https://www.instagram.com/p/' + i['node']['shortcode']
@@ -98,28 +101,41 @@ class InstagramSpider(scrapy.Spider):
             else:
                 image_url = i['node']['thumbnail_resources'][-1]['src']
                 video_url = ''
-            item = {'username': username, 'user_id': user_id, 'postURL': url, 'isVideo': video,
+            item = {'username': username,
+                    'user_id': user_id,
+                    'postURL': url,
+                    'isVideo': video,
                     'date_posted': date_posted_human,
-                    'timestamp': date_posted_timestamp, 'likeCount': like_count, 'commentCount': comment_count,
+                    'timestamp': date_posted_timestamp,
+                    'likeCount': like_count,
+                    'commentCount': comment_count,
                     'image_url': image_url,
-                    'captions': captions[:-1], 'biography': biography, 'videoURL': video_url,
-                    'followerCount': follower_count, 'website': website}
+                    'captions': captions[:-1],
+                    'biography': biography,
+                    'videoURL': video_url,
+                    'followerCount': follower_count,
+                    'website': website,
+                    'total_num_posts': total_num_posts}
             if video:
                 yield scrapy.Request(url, callback=self.get_video, meta={'item': item})
             else:
                 item['videoURL'] = ''
                 yield item
-        if next_page_bool:
+        i = 1
+        if next_page_bool and i < num_pages:
             cursor = \
                 data['entry_data']['ProfilePage'][0]['graphql']['user']['edge_owner_to_timeline_media']['page_info'][
                     'end_cursor']
             di = {'id': user_id, 'first': 12, 'after': cursor}
-            print(di)
             params = {'query_hash': 'e769aa130647d2354c40ea6a439bfc08', 'variables': json.dumps(di)}
             url = 'https://www.instagram.com/graphql/query/?' + urlencode(params)
+            i += 1
             yield scrapy.Request(url, callback=self.parse_pages, meta={'pages_di': di})
 
     def parse_pages(self, response):
+        num_pages = 2
+        i = 0
+
         di = response.meta['pages_di']
         data = json.loads(response.text)
 
@@ -133,6 +149,7 @@ class InstagramSpider(scrapy.Spider):
         username = data.get('data').get('user')['edge_owner_to_timeline_media'].get('edges')[0]['node']['owner'].get(
             'username')
         # biography = ''
+        total_num_posts = data.get('data').get('user')['edge_owner_to_timeline_media'].get('count')
         for i in data['data']['user']['edge_owner_to_timeline_media']['edges']:
             video = i['node']['is_video']
             url = 'https://www.instagram.com/p/' + i['node']['shortcode']
@@ -152,19 +169,31 @@ class InstagramSpider(scrapy.Spider):
             date_posted_human = datetime.fromtimestamp(date_posted_timestamp).strftime("%d/%m/%Y %H:%M:%S")
             like_count = i['node']['edge_media_preview_like']['count'] if "edge_media_preview_like" in i[
                 'node'].keys() else ''
-            item = {'username': username, 'user_id': user_id, 'postURL': url, 'isVideo': video,
+            item = {'username': username,
+                    'user_id': user_id,
+                    'postURL': url,
+                    'isVideo': video,
                     'date_posted': date_posted_human,
-                    'timestamp': date_posted_timestamp, 'likeCount': like_count, 'commentCount': comment_count,
+                    'timestamp': date_posted_timestamp,
+                    'likeCount': like_count,
+                    'commentCount': comment_count,
                     'image_url': image_url,
-                    'captions': captions[:-1], 'biography': biography, 'videoURL': video_url, 'followerCount': '',
-                    'website': ''}
+                    'captions': captions[:-1],
+                    'biography': biography,
+                    'videoURL': video_url,
+                    'followerCount': '',
+                    'website': '',
+                    'total_num_posts': total_num_posts}
             yield item
         next_page_bool = data['data']['user']['edge_owner_to_timeline_media']['page_info']['has_next_page']
-        if next_page_bool:
+        i = 0
+
+        if not next_page_bool:
             cursor = data['data']['user']['edge_owner_to_timeline_media']['page_info']['end_cursor']
             di['after'] = cursor
             params = {'query_hash': 'e769aa130647d2354c40ea6a439bfc08', 'variables': json.dumps(di)}
             url = 'https://www.instagram.com/graphql/query/?' + urlencode(params)
+            i += 1
             yield scrapy.Request(url, callback=self.parse_pages, meta={'pages_di': di})
 
     def get_video(self, response):
