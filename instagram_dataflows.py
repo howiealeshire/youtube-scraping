@@ -140,13 +140,11 @@ def turn_post_json_into_db_ready_object(post_json):
 
 def run_scrapy(filenum: int):
     scrapy_filename = str(filenum) + ".csv"
-    scrapy_path = r'C:/Users/howie/PycharmProjects/pythonProject/instascraper/scrapy_exports/' + scrapy_filename
+    scrapy_path = 'instascraper/scrapy_exports' + scrapy_filename
     scrapy_short_path = os.path.join('scrapy_exports',scrapy_filename)
     print("starting scrape")
-    subprocess.run("scrapy crawl instagram -o " + scrapy_short_path, cwd="C:\\Users\\howie"
-                                                                   "\\PycharmProjects"
-                                                                   "\\pythonProject\\instascraper"
-                                                                   "", shell=True)
+    subprocess.run("scrapy crawl instagram -o " + scrapy_short_path, cwd="instascraper"
+                                                                   , shell=True)
 
     print("finished scrape")
 
