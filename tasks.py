@@ -259,7 +259,7 @@ def run_scrape():
     global db_conn
     searched_users = load_unused_users(db_conn, table_name_searched_insta_users)
     searched_usernames = get_dict_list_vals_for_key(searched_users, 'username')
-    path = r'C:\Users\howie\PycharmProjects\pythonProject\instagram_users_to_scrape.json'
+    path = 'instagram_users_to_scrape.json'
     i = 0
     for group in grouper(searched_usernames, 200, ''):
         with open(path, 'w', encoding='utf-8') as f:

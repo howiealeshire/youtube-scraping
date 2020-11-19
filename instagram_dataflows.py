@@ -156,7 +156,7 @@ def run_scrapy(filenum: int):
 
 def run_scrapy_without_scrapy(db_conn, filenum: int):
     scrapy_filename = str(filenum) + ".csv"
-    scrapy_path = r'C:/Users/howie/PycharmProjects/pythonProject/instascraper/scrapy_exports/' + scrapy_filename
+    scrapy_path = 'instascraper/scrapy_exports' + scrapy_filename
     scrapy_short_path = os.path.join('scrapy_exports', scrapy_filename)
     print("starting scrape")
     #subprocess.run("scrapy crawl instagram -o " + scrapy_short_path, cwd="C:\\Users\\howie"
