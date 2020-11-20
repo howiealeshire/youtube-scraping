@@ -36,7 +36,7 @@ class InstagramSpider(scrapy.Spider):
     # custom_settings = {'CONCURRENT_REQUESTS_PER_DOMAIN': 5}
 
     def start_requests(self):
-        path = 'instagram_users_to_scrape.json'
+        path = '../../instagram_users_to_scrape.json'
         with open(path) as f:
             data = json.load(f)
         user_accounts = data

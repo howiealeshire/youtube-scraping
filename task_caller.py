@@ -9,8 +9,8 @@ if __name__ == "__main__":
     #      run_get_search_from_insta_api.delay(),
     #      run_get_most_popular_channels_youtube_api.delay())
           #run_scrape.delay())
-    run_scrape.delay()
-
+    #run_scrape.delay()
+    run_get_search_from_insta_api.delay()
     #run_get_most_popular_channels_youtube_api.delay()
     #run_get_most_popular_vids_youtube_api.delay()
     #run_get_search_from_insta_api.delay()

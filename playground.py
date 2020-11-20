@@ -29,17 +29,6 @@ def main():
     return list_of_non_dupes
 
 
-def main_test():
-    path = 'country_codes.json'
-    with open(path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    items = data.get('items')
-    country_codes = []
-    for item in items:
-        country_code = item.get('id')
-        if country_code:
-            country_codes.append(country_code)
-    pprint(country_codes)
 
 
 def get_videos_and_channels_for_daily_export():
