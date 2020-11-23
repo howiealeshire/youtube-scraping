@@ -61,8 +61,8 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=
         print(str(e))
         print(repr(e))
         print("HTTP Error. Nothing written.")
-        return request_array, response_array
-    return request_array, response_array
+        return request_array, response_array, None
+    return request_array, response_array, youtube
 
 
 def flattenAndParseChannelResponse(response) -> Dict:

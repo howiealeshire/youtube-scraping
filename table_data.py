@@ -7,7 +7,7 @@ table_name_searched_insta_users: str = 'instagram_users_searched'
 table_name_videos: str = 'videos'
 table_name_words_used: str = 'words_to_use_in_search'
 table_name_country_codes: str = 'region'
-
+table_name_yt_api_keys: str = 'yt_api_keys'
 
 @dataclass(init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=False)
 class YTChannel:
@@ -74,6 +74,13 @@ class Region:
     search_type: str
     platform: str
     has_been_used: bool
+
+
+@dataclass(init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=False)
+class YtAPIKey:
+    api_key: str
+    used_today: bool = False
+
 
 
 

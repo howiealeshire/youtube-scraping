@@ -1,9 +1,10 @@
 import json
+from dataclasses import asdict
 
 from helper_functions import *
 from enum import Enum
 
-from youtube_data_flows import get_channels_from_channel_ids
+from table_data import YtAPIKey
 
 
 class TableNames(Enum):
@@ -163,6 +164,20 @@ def main_test4():
     #get_n_users_from_db_and_write_to_json(init_db_connection(),path,5)
 
 
+def test_test2():
+    with open('db_remote_pass.txt') as f:
+        read_data = f.read()
+    pprint(read_data)
+
+
+def test_test3():
+    with open('youtube_api_keys.txt') as f:
+        read_data = f.readlines()
+    dict_list = []
+    for elem in read_data:
+        dict_list.append(asdict(YtAPIKey(elem,False)))
+    write_dictlist_to_db(init_remote_db_connection(), dict_list, table_name_yt_api_keys)
+    pprint(read_data)
 
 
 if __name__ == "__main__":
@@ -170,4 +185,4 @@ if __name__ == "__main__":
 
     #get_videos_and_channels_for_daily_export()
 
-    main_test4()
+    test_test3()

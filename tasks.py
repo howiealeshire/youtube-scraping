@@ -17,9 +17,9 @@ import runscraping as rs
 
 from helper_functions import init_db_connection, write_dict_to_db, convert_list_to_list_of_dicts, write_dictlist_to_db, \
     grouper, load_db_table, get_dict_list_vals_for_key, load_unused_users, update_used_statuses, \
-    get_channel_ids_not_in_channels
+    get_channel_ids_not_in_channels, init_remote_db_connection
 from instagram_dataflows import get_n_sets_of_profiles, run_scrapy
-from youtube_data_flows import get_most_popular_vids, get_most_popular_channels, get_channels_from_channel_ids, \
+from youtube_data_flows import get_most_popular_vids, get_most_popular_channels, \
     get_channel_from_channel_id
 
 app: Celery = Celery('tasks', broker='pyamqp://guest@localhost//')
@@ -27,23 +27,30 @@ app: Celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 from celery.signals import worker_process_init, worker_process_shutdown
 
 db_conn = None
-
+remote_db_conn = None
 app.conf.timezone = 'US/Eastern'
 
 
 @worker_process_init.connect
 def init_worker(**kwargs):
     global db_conn
+    global remote_db_conn
     print('Initializing database connection for worker.')
     db_conn = init_db_connection()
+    print('Initializing remote database connection for worker.')
+    remote_db_conn = init_remote_db_connection()
 
 
 @worker_process_shutdown.connect
 def shutdown_worker(**kwargs):
     global db_conn
+    global remote_db_conn
     if db_conn:
         print('Closing database connection for worker.')
         db_conn.close()
+    if remote_db_conn:
+        print('Closing remote database connection for worker.')
+        remote_db_conn.close()
 
 
 @app.on_after_configure.connect
@@ -63,13 +70,13 @@ def test(arg):
 
 @app.task
 def get_search_from_insta_api():
-    global db_conn
-    response = get_n_sets_of_profiles(db_conn,1)
+    global remote_db_conn
+    response = get_n_sets_of_profiles(remote_db_conn,1)
     return response
 
 
 @app.task
-def get_most_popular_vids_youtube_api(regionCode):
+def get_most_popular_vids_youtube_api():
     global db_conn
     x = get_most_popular_vids(db_conn)
     if x:
@@ -220,7 +227,7 @@ def run_get_most_popular_channels_youtube_api():
 @app.task
 def get_channels_from_id_youtube_api(group):
     global db_conn
-    x = get_channel_from_channel_id(group)
+    x = get_channel_from_channel_id(db_conn,group)
     if x:
         write_dictlist_to_db(db_conn, x, pg_table=table_name_channels)
     return x

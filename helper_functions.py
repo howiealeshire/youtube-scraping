@@ -9,7 +9,7 @@ from datetime import datetime
 from os import listdir
 from os.path import basename, isfile, join
 from pprint import pprint
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import googleapiclient
 import psycopg2
@@ -22,18 +22,19 @@ import os
 from hypothesis import given
 from hypothesis.strategies import text
 
-from table_data import table_name_searched_insta_users, table_name_channels, table_name_videos, table_name_words_used
-
-
+from table_data import table_name_searched_insta_users, table_name_channels, table_name_videos, table_name_words_used, \
+    table_name_yt_api_keys
 
 
 def get_filtered_words() -> List[str]:
     with open('clean_words.txt') as f:
         return f.readlines()
 
+
 def get_country_codes() -> List[str]:
-    with open('valid_country_codes.json','r',encoding='utf-8') as f:
+    with open('valid_country_codes.json', 'r', encoding='utf-8') as f:
         return json.load(f)
+
 
 def _to_json(python_object):
     if isinstance(python_object, bytes):
@@ -132,11 +133,11 @@ def init_insta_api(proxy=""):
     return api
 
 
-def init_yt_client():
+def init_yt_client(conn):
     # Disable OAuthlib's HTTPS verification when running locally.
     # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-    api_key = get_unused_yt_api_key('youtube_api_keys_unused.txt', 'youtube_api_keys_used.txt')
+    api_key = get_unused_yt_api_key_from_db(conn)
     api_service_name = "youtube"
     api_version = "v3"
     client_secrets_file = "client_secret_1080473066558-rh5ihim77tc3qbpvparpjnts926tuk3t.apps.googleusercontent.com.json"
@@ -148,6 +149,23 @@ def init_yt_client():
 def load_db_table_unexported(conn, table_name) -> List[Dict]:
     channels = Table(table_name)
     q = PostgreSQLQuery.from_(channels).select(channels.star).where(channels.exported_already != True)
+
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute(q.get_sql())
+    ans = cur.fetchall()
+    ans1 = []
+    for row in ans:
+        ans1.append(dict(row))
+
+    # cursor = conn.cursor()
+    # cursor.execute(q.get_sql())
+    # rows = cursor.fetchall()
+    return ans1
+
+
+def load_db_table_unused_yt_api_keys(conn, table_name) -> List[Dict]:
+    channels = Table(table_name)
+    q = PostgreSQLQuery.from_(channels).select(channels.star).where(channels.used_today != True)
 
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     cur.execute(q.get_sql())
@@ -186,6 +204,16 @@ def get_unused_yt_api_key(unused_keys_path: str, used_file_path: str) -> str:
     else:
         reset_api_keys_used(unused_keys_path, used_file_path)
         return get_unused_yt_api_key(unused_keys_path, used_file_path)
+
+
+def get_unused_yt_api_key_from_db(conn) -> Optional[str]:
+    api_keys = load_db_table_unused_yt_api_keys(conn, table_name_yt_api_keys)
+    if api_keys:
+        api_dict1 = api_keys[0]
+        api_key1 = api_dict1.get('api_key')
+        return api_key1
+    else:
+        return None
 
 
 def reset_api_keys_used(unused_file_path: str, used_file_path: str):
@@ -237,7 +265,7 @@ def is_in_dictlist_column(dict_list: List[Dict], column_name, value) -> bool:
 def get_n_users_from_db_and_write_to_json(conn, path, n):
     searched_users = load_db_table(conn, table_name_searched_insta_users)
     searched_usernames = get_dict_list_vals_for_key(searched_users, 'username')[:n]
-    #pprint(searched_usernames)
+    # pprint(searched_usernames)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(list(searched_usernames), f)
 
@@ -277,7 +305,7 @@ def load_unused_users(conn, table_name) -> List[Dict]:
     channels = Table(table_name)
     q = PostgreSQLQuery.from_(channels).select(channels.username, channels.has_been_used).where(
         channels.has_been_used == False)
-    #pprint(q)
+    # pprint(q)
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     cur.execute(q.get_sql())
     ans = cur.fetchall()
@@ -350,6 +378,20 @@ def init_test_db_connection() -> Any:
     return connection
 
 
+def init_remote_db_connection() -> Any:
+    """I think we have to have the powershell instance going with the tunneling for this to work"""
+    with open('db_remote_pass.txt') as f:
+        read_data = f.read()
+    connection = psycopg2.connect(user="howie",
+                                  password=read_data,
+                                  host="127.0.0.1",
+                                  port="63333",
+                                  database="howie")
+    return connection
+
+
+
+
 def addResponseToDB(connection, response, pg_table=''):
     kind = response.get('kind')
     pg_query = ""
@@ -372,7 +414,7 @@ def update_used_status(conn, response: Dict):
     cursor = conn.cursor()
     # noinspection PyTypeChecker
     pg_query = Query.update(pg_table).set(pg_table.has_been_used, True).where(pg_table.username == response['username'])
-    #pprint(pg_query)
+    # pprint(pg_query)
     cursor.execute(pg_query.get_sql())
     conn.commit()
     cursor.close()
@@ -412,13 +454,13 @@ def update_export_status(connection, responses, value=True, pg_table=''):
 
 
 def write_dict_to_db(connection, response, pg_table):
-    #pprint(response)
+    # pprint(response)
     # response2 = add_exported_already_field(response, pg_table)
     # response3 = add_date_exported_field(response2, pg_table)
     cursor = connection.cursor()
     pg_query2 = PostgreSQLQuery.into(pg_table).insert(*response.values())
     pg_query = pg_query2.on_conflict().do_nothing()
-    #pprint(pg_query2)
+    # pprint(pg_query2)
     cursor.execute(pg_query.get_sql())
     connection.commit()
     cursor.close()
@@ -431,6 +473,7 @@ def write_dictlist_to_db(conn, dict_list: List[Dict], pg_table):
         row_affected = write_dict_to_db(conn, this_dict, pg_table)
         rows_affected += 1
     print(f"Number of rows updated: {rows_affected}")
+
 
 def flatten_list(list2d):
     """@safe"""
@@ -488,24 +531,11 @@ def write_csvs_to_db(csv_folder_path, conn, has_been_exported_already=True):
         write_csv_to_db(file, conn)
 
 
-def update_category_ids():
-    youtube = init_yt_client()
-    request = youtube.videoCategories().list(
-        part="snippet",
-        regionCode="US"
-    )
-    response = request.execute()
-    id_list = []
-    for item in response.get('items'):
-        id_list.append(item.get('id') + '\n')
-    with open('youtube_category_ids.txt', 'w', encoding='utf-8') as f:
-        f.writelines(id_list)
-
 
 def get_category_ids_from_file(filepath='youtube_category_ids.txt'):
     with open(filepath) as f:
         mylist = f.read().splitlines()
-    #pprint(mylist)
+    # pprint(mylist)
     return mylist
 
 
@@ -600,13 +630,14 @@ def get_random_words(conn, search_type, platform, n) -> List[str]:
     for elem in words_used:
         if elem['search_type'] == search_type and elem['platform'] == platform:
             words_not_to_use.append(elem['word'])
+
     x = random.sample(list(set(clean_words) - set(words_not_to_use)), n)
     return x
 
 
 def main_test():
     conn = init_db_connection()
-    x = get_random_country_code(conn,'','')
+    x = get_random_country_code(conn, '', '')
     print(len(x))
     print(x)
     if conn:
