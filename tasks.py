@@ -27,18 +27,14 @@ app: Celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 from celery.signals import worker_process_init, worker_process_shutdown
 
 db_conn = None
-remote_db_conn = None
 app.conf.timezone = 'US/Eastern'
 
 
 @worker_process_init.connect
 def init_worker(**kwargs):
     global db_conn
-    global remote_db_conn
     print('Initializing database connection for worker.')
     db_conn = init_db_connection()
-    print('Initializing remote database connection for worker.')
-    remote_db_conn = init_remote_db_connection()
 
 
 @worker_process_shutdown.connect
@@ -48,9 +44,7 @@ def shutdown_worker(**kwargs):
     if db_conn:
         print('Closing database connection for worker.')
         db_conn.close()
-    if remote_db_conn:
-        print('Closing remote database connection for worker.')
-        remote_db_conn.close()
+
 
 
 @app.on_after_configure.connect
@@ -70,7 +64,6 @@ def test(arg):
 
 @app.task
 def get_search_from_insta_api():
-    global remote_db_conn
     response = get_n_sets_of_profiles(remote_db_conn,1)
     return response
 
@@ -206,7 +199,7 @@ def run_get_most_popular_vids_youtube_api():
     for i in country_codes:
         rand_val = random.randint(7, 12)
         sleep(rand_val)
-        response = get_most_popular_vids_youtube_api(i)
+        response = get_most_popular_vids_youtube_api()
         list_vals.append(response)
     return list_vals
 
