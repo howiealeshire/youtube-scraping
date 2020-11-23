@@ -61,7 +61,7 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, conn, 
         print(str(e))
         print(repr(e))
         print("HTTP Error. Nothing written.")
-        update_api_key_status(conn,youtube)
+        update_api_key_status(conn,youtube._developerKey)
         return request_array, response_array, None
     return request_array, response_array, youtube
 

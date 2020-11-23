@@ -11,7 +11,7 @@ from os.path import basename, isfile, join
 from pprint import pprint
 from typing import Dict, List, Any, Optional
 
-import googleapiclient
+import googleapiclient.discovery
 import psycopg2
 import psycopg2.extras
 from instagram_private_api import Client, ClientCookieExpiredError, ClientLoginRequiredError, ClientLoginError, \
