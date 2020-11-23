@@ -56,6 +56,8 @@ def _onlogin_callback(api, new_settings_file):
         print('SAVED: {0!s}'.format(new_settings_file))
 
 
+
+
 def init_insta_api(proxy=""):
     user_name = 'devdevdevdevdev123455667778989'
     password = 'hGC%\$;Q$J^2q3!]'
@@ -163,8 +165,8 @@ def load_db_table_unexported(conn, table_name) -> List[Dict]:
     return ans1
 
 
-def load_db_table_unused_yt_api_keys(conn, table_name) -> List[Dict]:
-    channels = Table(table_name)
+def load_db_table_unused_yt_api_keys(conn) -> List[Dict]:
+    channels = Table(table_name_yt_api_keys)
     q = PostgreSQLQuery.from_(channels).select(channels.star).where(channels.used_today != True)
 
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -207,7 +209,7 @@ def get_unused_yt_api_key(unused_keys_path: str, used_file_path: str) -> str:
 
 
 def get_unused_yt_api_key_from_db(conn) -> Optional[str]:
-    api_keys = load_db_table_unused_yt_api_keys(conn, table_name_yt_api_keys)
+    api_keys = load_db_table_unused_yt_api_keys(conn)
     if api_keys:
         api_dict1 = api_keys[0]
         api_key1 = api_dict1.get('api_key')
@@ -418,6 +420,18 @@ def update_used_status(conn, response: Dict):
     cursor.execute(pg_query.get_sql())
     conn.commit()
     cursor.close()
+
+
+def update_api_key_status(conn, api_key):
+    pg_table = Table(table_name_searched_insta_users)
+    cursor = conn.cursor()
+    # noinspection PyTypeChecker
+    pg_query = Query.update(pg_table).set(pg_table.used_today, True).where(pg_table.api_key == api_key)
+    # pprint(pg_query)
+    cursor.execute(pg_query.get_sql())
+    conn.commit()
+    cursor.close()
+
 
 
 def update_used_statuses(conn, responses: List[Dict]):

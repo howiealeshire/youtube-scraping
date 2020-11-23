@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dataclasses import asdict
 
-from helper_functions import get_unused_yt_api_key
+from helper_functions import get_unused_yt_api_key, update_api_key_status
 import csv
 import json
 import sys
@@ -25,7 +25,7 @@ scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
 from helper_functions import init_yt_client
 
 
-def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=False, channel=False):
+def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, conn, video=False, channel=False):
     """sample response with the following params stored in
      Search params used: search_params_most_popular = dict(maxResults=5, part='snippet,contentDetails,statistics',
                                        chart="mostPopular", pageToken="CDIQAA",
@@ -61,6 +61,7 @@ def makeSearchRequestsForNRecordsClean(youtube, num_pages, search_params, video=
         print(str(e))
         print(repr(e))
         print("HTTP Error. Nothing written.")
+        update_api_key_status(conn,youtube)
         return request_array, response_array, None
     return request_array, response_array, youtube
 

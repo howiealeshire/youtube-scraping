@@ -53,12 +53,12 @@ def get_most_popular_vids(conn):
                                       regionCode=regionCode)
 
     request_array2, response_array2, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results,
-                                                                         search_params_most_popular, True)
+                                                                         search_params_most_popular,conn, True)
 
     if not youtube2:
         youtube = init_yt_client(conn)
         request_array2, response_array2, youtube3 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results,
-                                                                                       search_params_most_popular, True)
+                                                                                       search_params_most_popular,conn, True)
 
     merged = get_all_items_from_response(response_array2)
     parsed_flattened_arr = flatten_and_parse_all_responses(merged)
@@ -75,12 +75,12 @@ def get_most_popular_channels(conn):
 
     search_params = dict(maxResults=max_results_per_page, order='viewCount', part='snippet', type='channel',
                          pageToken="CDIQAA", q=chosen_word)
-    request_array2, response_array2, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results, search_params,
+    request_array2, response_array2, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results, search_params, conn,
                                                                          False, False)
     if not youtube2:
         youtube2 = init_yt_client(conn)
         request_array2, response_array2, youtube3 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results,
-                                                                                       search_params,
+                                                                                       search_params, conn,
                                                                                        False, False)
 
     merged = get_all_items_from_response(response_array2)
@@ -130,11 +130,11 @@ def get_channel_from_channel_id_true(conn, youtube, channel_id: str):
                          pageToken="CDIQAA", id=channel_id)
     had_to_replace_api = False
     request_array, response_array, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results,
-                                                                                 search_params, False, True)
+                                                                                 search_params, conn, False, True)
     if not youtube2:
         youtube = init_yt_client(conn)
         request_array, response_array, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages_of_results,
-                                                                                     search_params, False, True)
+                                                                                     search_params,conn, False, True)
 
     merged = get_all_items_from_response(response_array)
     dict_list = []
@@ -161,7 +161,7 @@ def get_channels_from_channel_ids(conn, channel_ids_list: List[str]):
     return channel_response
 
 
-def get_most_popular_in_all_categories(youtube, num_pages, num_items_per_page=30, video=False):
+def get_most_popular_in_all_categories(youtube, conn, num_pages, num_items_per_page=30, video=False):
     cat_ids = ['1',
                '2',
                '10']
@@ -173,7 +173,7 @@ def get_most_popular_in_all_categories(youtube, num_pages, num_items_per_page=30
                                           chart="mostPopular", pageToken="CDIQAA",
                                           regionCode="US", videoCategoryId=id)
         request_array, response_array, youtube2 = makeSearchRequestsForNRecordsClean(youtube, num_pages,
-                                                                           search_params_most_popular, True)
+                                                                           search_params_most_popular, conn, True)
 
 
 
