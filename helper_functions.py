@@ -23,7 +23,7 @@ from hypothesis import given
 from hypothesis.strategies import text
 
 from table_data import table_name_searched_insta_users, table_name_channels, table_name_videos, table_name_words_used, \
-    table_name_yt_api_keys
+    table_name_yt_api_keys, table_name_insta_users
 
 
 def get_filtered_words() -> List[str]:
@@ -317,6 +317,9 @@ def load_unused_users(conn, table_name) -> List[Dict]:
 
     return ans1
 
+def get_users_searched_already_in_db():
+
+    pass
 
 def read_csv_into_dictlist(file_path):
     with open(file_path, encoding='utf-8') as f:
@@ -411,6 +414,7 @@ def addResponseToDB(connection, response, pg_table=''):
         write_dict_to_db(connection, response, pg_table)
 
 
+
 def update_used_status(conn, response: Dict):
     pg_table = Table(table_name_searched_insta_users)
     cursor = conn.cursor()
@@ -423,7 +427,7 @@ def update_used_status(conn, response: Dict):
 
 
 def update_api_key_status(conn, api_key):
-    pg_table = Table(table_name_searched_insta_users)
+    pg_table = Table(table_name_yt_api_keys)
     cursor = conn.cursor()
     # noinspection PyTypeChecker
     pg_query = Query.update(pg_table).set(pg_table.used_today, True).where(pg_table.api_key == api_key)
@@ -600,6 +604,23 @@ def remove_dupes_from_searched_users(conn):
     write_dictlist_to_db(conn, dict_list, 'instagram_users_searched')
 
 
+def get_list_of_searched_users_not_in_db_already(conn):
+    searched_users = load_db_table(conn, table_name_searched_insta_users)
+    users = load_db_table(conn, table_name_insta_users)
+    usernames = get_dict_list_vals_for_key(users, 'user_id')
+    searched_usernames = get_dict_list_vals_for_key(searched_users, 'username')
+    dict_list = []
+    dict_list_already_there = []
+    for elem in searched_usernames:
+        if elem not in usernames:
+            dict_list.append({'username': elem})
+        else:
+            dict_list_already_there.append({'username': elem})
+
+    return dict_list,dict_list_already_there
+
+
+
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
@@ -659,4 +680,10 @@ def main_test():
 
 
 if __name__ == '__main__':
-    main_test()
+    conn = init_db_connection()
+    x,y = get_list_of_searched_users_not_in_db_already(conn)
+    print(len(x))
+    print(len(y))
+    if conn:
+        conn.close()
+    #main_test()
