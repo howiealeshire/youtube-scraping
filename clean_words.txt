@@ -1,3 +1,4 @@
+word
 a
 AAA
 AAAS

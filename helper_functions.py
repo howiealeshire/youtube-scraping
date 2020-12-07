@@ -5,6 +5,7 @@ import itertools
 import json
 import random
 import sys
+from dataclasses import asdict
 from datetime import datetime
 from os import listdir
 from os.path import basename, isfile, join
@@ -23,7 +24,7 @@ from hypothesis import given
 from hypothesis.strategies import text
 
 from table_data import table_name_searched_insta_users, table_name_channels, table_name_videos, table_name_words_used, \
-    table_name_yt_api_keys, table_name_insta_users
+    table_name_yt_api_keys, table_name_insta_users, SearchWord
 
 
 def get_filtered_words() -> List[str]:
@@ -609,15 +610,15 @@ def get_list_of_searched_users_not_in_db_already(conn):
     users = load_db_table(conn, table_name_insta_users)
     usernames = get_dict_list_vals_for_key(users, 'user_id')
     searched_usernames = get_dict_list_vals_for_key(searched_users, 'username')
-    dict_list = []
+    dict_list_not_there = []
     dict_list_already_there = []
     for elem in searched_usernames:
         if elem not in usernames:
-            dict_list.append({'username': elem})
+            dict_list_not_there.append({'username': elem})
         else:
             dict_list_already_there.append({'username': elem})
 
-    return dict_list,dict_list_already_there
+    return dict_list_not_there,dict_list_already_there
 
 
 
@@ -669,6 +670,28 @@ def get_random_words(conn, search_type, platform, n) -> List[str]:
     x = random.sample(list(set(clean_words) - set(words_not_to_use)), n)
     return x
 
+def parse_popular_baby_names_and_add_to_words_to_use(conn):
+    file_name = 'babynames-clean.csv'
+    name_list = get_dict_list_vals_for_key(read_csv_into_dictlist(file_name),'name')
+    dict_list = []
+    for elem in name_list:
+        x = SearchWord(elem,'','',False)
+        dict_list.append(asdict(x))
+    write_dictlist_to_db(conn,dict_list,table_name_words_used)
+
+
+
+def parse_clean_words_and_add_to_words_to_use(conn):
+    file_name = 'clean_words.txt'
+    name_list = get_dict_list_vals_for_key(read_csv_into_dictlist(file_name),'word')
+    dict_list = []
+    for elem in name_list:
+        x = SearchWord(elem,'','',False)
+        dict_list.append(asdict(x))
+    #pprint(dict_list)
+    write_dictlist_to_db(conn,dict_list,table_name_words_used)
+
+
 
 def main_test():
     conn = init_db_connection()
@@ -681,9 +704,8 @@ def main_test():
 
 if __name__ == '__main__':
     conn = init_db_connection()
-    x,y = get_list_of_searched_users_not_in_db_already(conn)
-    print(len(x))
-    print(len(y))
+
+    parse_clean_words_and_add_to_words_to_use(conn)
     if conn:
         conn.close()
     #main_test()
